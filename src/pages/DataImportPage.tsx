@@ -30,7 +30,8 @@ import {
   AlertTitle,
 } from "@/components/ui/alert";
 import { toast } from "sonner";
-import { uploadAndValidateFile } from "@/services/api";
+import { uploadAndValidateFile, FileUploadResponse } from "@/services/api";
+import { ColumnMapper } from "@/components/data-import/ColumnMapper";
 
 const DataImportPage = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -39,11 +40,9 @@ const DataImportPage = () => {
   const [importSource, setImportSource] = useState("file");
   const [isValidating, setIsValidating] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
-  const [validationResults, setValidationResults] = useState<{
-    processed: number;
-    failed: number;
-    errors: string[];
-  } | null>(null);
+  const [showColumnMapper, setShowColumnMapper] = useState(false);
+  const [columnMappings, setColumnMappings] = useState<Record<string, string>>({});
+  const [validationResults, setValidationResults] = useState<FileUploadResponse | null>(null);
 
   // Handle file selection
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -53,13 +52,25 @@ const DataImportPage = () => {
       toast.success(`File "${files[0].name}" selected`);
       setMappingDone(false);
       setValidationDone(false);
+      setColumnMappings({});
+      setValidationResults(null);
+      setShowColumnMapper(true);
     }
   };
 
   // Handle mapping completion
-  const handleCompleteMappingClick = () => {
+  const handleMappingsConfirmed = (mappings: Record<string, string>) => {
+    setColumnMappings(mappings);
     setMappingDone(true);
+    setShowColumnMapper(false);
     toast.success("Column mapping completed");
+  };
+
+  // Handle mapping cancellation
+  const handleMappingCancel = () => {
+    setShowColumnMapper(false);
+    // Optionally reset the file selection if user cancels mapping
+    // setSelectedFile(null);
   };
 
   // Handle validation
@@ -73,14 +84,10 @@ const DataImportPage = () => {
     toast.info("Validating data...");
 
     try {
-      const result = await uploadAndValidateFile(selectedFile);
+      // Pass the column mappings to the upload function
+      const result = await uploadAndValidateFile(selectedFile, columnMappings);
 
-      setValidationResults({
-        processed: result.processed || 0,
-        failed: result.failed || 0,
-        errors: result.errors || []
-      });
-
+      setValidationResults(result);
       setValidationDone(true);
 
       if (result.failed > 0) {
@@ -200,7 +207,7 @@ const DataImportPage = () => {
                           <input
                             type="file"
                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                            accept=".csv,.xlsx,.xls"
+                            accept=".csv,.xlsx,.xls,.json"
                             onChange={handleFileChange}
                           />
                         </Button>
@@ -208,13 +215,30 @@ const DataImportPage = () => {
                     </div>
                   </CardContent>
                 </Card>
+              ) : showColumnMapper ? (
+                <ColumnMapper
+                  file={selectedFile}
+                  onMappingsConfirmed={handleMappingsConfirmed}
+                  onCancel={handleMappingCancel}
+                />
               ) : (
                 <>
                   <Card>
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between">
-                        <CardTitle>File Preview</CardTitle>
-                        <Button variant="ghost" size="sm" className="text-xs">Change File</Button>
+                        <CardTitle>File Selected</CardTitle>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs"
+                          onClick={() => {
+                            setSelectedFile(null);
+                            setMappingDone(false);
+                            setValidationDone(false);
+                          }}
+                        >
+                          Change File
+                        </Button>
                       </div>
                       <CardDescription className="flex items-center gap-2">
                         <FileSpreadsheet className="h-4 w-4 text-muted-foreground" />
@@ -222,108 +246,44 @@ const DataImportPage = () => {
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="overflow-x-auto border rounded-md">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Column A</TableHead>
-                              <TableHead>Column B</TableHead>
-                              <TableHead>Column C</TableHead>
-                              <TableHead>Column D</TableHead>
-                              <TableHead>Column E</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {[1, 2, 3, 4].map((row) => (
-                              <TableRow key={row}>
-                                <TableCell>Sample {row}A</TableCell>
-                                <TableCell>Sample {row}B</TableCell>
-                                <TableCell>Sample {row}C</TableCell>
-                                <TableCell>Sample {row}D</TableCell>
-                                <TableCell>Sample {row}E</TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Column Mapping</CardTitle>
-                      <CardDescription>
-                        Map the columns from your file to the CRM fields
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
                       <div className="space-y-4">
+                        <Alert className="border-green-200 bg-green-50 text-green-800">
+                          <CheckCircle2 className="h-4 w-4" />
+                          <AlertTitle>Column Mapping Complete</AlertTitle>
+                          <AlertDescription>
+                            You've successfully mapped {Object.keys(columnMappings).length} columns from your file.
+                          </AlertDescription>
+                        </Alert>
+
                         <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <label className="text-sm font-medium">First Name</label>
-                            <Select defaultValue="columnA">
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select column" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="columnA">Column A</SelectItem>
-                                <SelectItem value="columnB">Column B</SelectItem>
-                                <SelectItem value="columnC">Column C</SelectItem>
-                              </SelectContent>
-                            </Select>
+                          <div className="rounded-md border p-3 bg-gray-50">
+                            <div className="text-sm font-medium mb-1">Mapped Columns</div>
+                            <div className="text-2xl font-bold text-green-600">{Object.keys(columnMappings).length}</div>
                           </div>
 
-                          <div className="space-y-2">
-                            <label className="text-sm font-medium">Last Name</label>
-                            <Select defaultValue="columnB">
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select column" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="columnA">Column A</SelectItem>
-                                <SelectItem value="columnB">Column B</SelectItem>
-                                <SelectItem value="columnC">Column C</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-
-                          <div className="space-y-2">
-                            <label className="text-sm font-medium">Email</label>
-                            <Select defaultValue="columnC">
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select column" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="columnA">Column A</SelectItem>
-                                <SelectItem value="columnB">Column B</SelectItem>
-                                <SelectItem value="columnC">Column C</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-
-                          <div className="space-y-2">
-                            <label className="text-sm font-medium">Phone</label>
-                            <Select defaultValue="columnD">
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select column" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="columnA">Column A</SelectItem>
-                                <SelectItem value="columnB">Column B</SelectItem>
-                                <SelectItem value="columnC">Column C</SelectItem>
-                                <SelectItem value="columnD">Column D</SelectItem>
-                              </SelectContent>
-                            </Select>
+                          <div className="rounded-md border p-3 bg-gray-50">
+                            <div className="text-sm font-medium mb-1">Required Fields</div>
+                            <div className="text-sm">
+                              {columnMappings['contact_number'] ? (
+                                <span className="text-green-600 flex items-center gap-1">
+                                  <CheckCircle2 className="h-3 w-3" /> Phone/Contact
+                                </span>
+                              ) : (
+                                <span className="text-amber-600">Phone/Contact (Required)</span>
+                              )}
+                            </div>
                           </div>
                         </div>
 
-                        {!mappingDone && (
-                          <div className="flex justify-end mt-4">
-                            <Button onClick={handleCompleteMappingClick}>
-                              Complete Mapping
-                            </Button>
-                          </div>
-                        )}
+                        <div className="flex justify-end mt-4">
+                          <Button
+                            variant="outline"
+                            className="mr-2"
+                            onClick={() => setShowColumnMapper(true)}
+                          >
+                            Edit Mappings
+                          </Button>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>

@@ -4,14 +4,78 @@
 
 // Using Vite's proxy feature to avoid CORS issues in development
 const API_BASE_URL = '/api';
+// For segmentation operations, we use the /segment endpoint which is proxied to the segmentation server
+const SEGMENT_API_URL = `${API_BASE_URL}/segment`;
 
 /**
  * Run comprehensive segmentation on all customer data
  * @returns Promise with the segmentation results
  */
+// Sample data for when the backend is not available
+export const getSampleSegmentationData = () => {
+  return {
+    summary: {
+      demographic: {
+        Male: 250,
+        Female: 200,
+        Other: 50
+      },
+      age_distribution: {
+        'Age_Under_18': 42,
+        'Age_18_24': 120,
+        'Age_25_34': 235,
+        'Age_35_44': 180,
+        'Age_45_54': 98,
+        'Age_55_Plus': 75
+      },
+      value_based_rfm: {
+        "Champions": 100,
+        "Loyal Customers": 150,
+        "Potential Loyalists": 80,
+        "At Risk": 70,
+        "Lost Customers": 56
+      },
+      preference: {
+        "Fashion Enthusiasts": 120,
+        "Casual Shoppers": 180,
+        "Seasonal Buyers": 90,
+        "Brand Loyalists": 66
+      }
+    },
+    details: {
+      value_based_rfm_details: {
+        avg_values: {
+          "Champions": { recency: 5, frequency: 12, monetary: 25000 },
+          "Loyal Customers": { recency: 15, frequency: 8, monetary: 18000 },
+          "Potential Loyalists": { recency: 30, frequency: 3, monetary: 10000 },
+          "At Risk": { recency: 60, frequency: 2, monetary: 8000 },
+          "Lost Customers": { recency: 120, frequency: 1, monetary: 5000 }
+        }
+      },
+      preference_details: {
+        profiles: {
+          "Fashion Enthusiasts": { favorite_category: "Clothing", preferred_material: "Cotton" },
+          "Casual Shoppers": { favorite_category: "Footwear", preferred_material: "Leather" },
+          "Seasonal Buyers": { favorite_category: "Accessories", preferred_material: "Synthetic" },
+          "Brand Loyalists": { favorite_category: "Electronics", preferred_material: "N/A" }
+        },
+        distribution: {
+          "Fashion Enthusiasts": 120,
+          "Casual Shoppers": 180,
+          "Seasonal Buyers": 90,
+          "Brand Loyalists": 66
+        }
+      }
+    },
+    customer_count: 500
+  };
+};
+
 export const runComprehensiveSegmentation = async (): Promise<any> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/segment/comprehensive`, {
+    console.log(`Attempting to fetch comprehensive segmentation from ${SEGMENT_API_URL}/comprehensive`);
+
+    const response = await fetch(`${SEGMENT_API_URL}/comprehensive`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -19,24 +83,31 @@ export const runComprehensiveSegmentation = async (): Promise<any> => {
       body: JSON.stringify({}), // Empty request body
     });
 
+    console.log(`Response status for comprehensive segmentation:`, response.status, response.statusText);
+
     if (!response.ok) {
       try {
         const errorData = await response.json();
+        console.error(`Error data for comprehensive segmentation:`, errorData);
         throw new Error(errorData.error || 'Failed to run segmentation');
       } catch (jsonError) {
         // If response is not valid JSON
+        console.error(`Failed to parse error response for comprehensive segmentation:`, jsonError);
         throw new Error(`API error: ${response.status} ${response.statusText}`);
       }
     }
 
     try {
-      return await response.json();
+      const data = await response.json();
+      console.log(`Successfully received comprehensive segmentation data:`, data);
+      return data;
     } catch (jsonError) {
       console.error('Failed to parse JSON response:', jsonError);
       throw new Error('Invalid response from segmentation server');
     }
   } catch (error) {
     console.error('Error running segmentation:', error);
+    // Remove fallback mechanism to display real data only
     throw error;
   }
 };
@@ -56,7 +127,9 @@ export const runSpecificSegmentation = async (
   }
 ): Promise<any> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/segment/${segmentType}`, {
+    console.log(`Attempting to fetch ${segmentType} segmentation from ${SEGMENT_API_URL}/${segmentType}`);
+
+    const response = await fetch(`${SEGMENT_API_URL}/${segmentType}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -68,24 +141,31 @@ export const runSpecificSegmentation = async (
       }),
     });
 
+    console.log(`Response status for ${segmentType} segmentation:`, response.status, response.statusText);
+
     if (!response.ok) {
       try {
         const errorData = await response.json();
+        console.error(`Error data for ${segmentType} segmentation:`, errorData);
         throw new Error(errorData.error || `Failed to run ${segmentType} segmentation`);
       } catch (jsonError) {
         // If response is not valid JSON
+        console.error(`Failed to parse error response for ${segmentType} segmentation:`, jsonError);
         throw new Error(`API error: ${response.status} ${response.statusText}`);
       }
     }
 
     try {
-      return await response.json();
+      const data = await response.json();
+      console.log(`Successfully received ${segmentType} segmentation data:`, data);
+      return data;
     } catch (jsonError) {
       console.error(`Failed to parse JSON response for ${segmentType} segmentation:`, jsonError);
       throw new Error('Invalid response from segmentation server');
     }
   } catch (error) {
     console.error(`Error running ${segmentType} segmentation:`, error);
+    // Remove fallback mechanism to display real data only
     throw error;
   }
 };
@@ -105,6 +185,16 @@ export const transformSegmentationData = (apiData: any) => {
     return {
       name: name.replace('Gender_', ''), // Remove prefix if needed
       value: typeof value === 'number' ? value : Number(value),
+      color: colors[index % colors.length],
+    };
+  });
+
+  // Extract age distribution data if available
+  const ageDistribution = apiData.summary?.age_distribution || {};
+  const ageData = Object.entries(ageDistribution).map(([ageGroup, count], index) => {
+    return {
+      name: ageGroup,
+      value: typeof count === 'number' ? count : Number(count),
       color: colors[index % colors.length],
     };
   });
@@ -214,6 +304,7 @@ export const transformSegmentationData = (apiData: any) => {
     categoryDistribution,
     materialDistribution,
     segmentTrendData,
+    ageData, // Add age data to the return object
     rawApiData: apiData, // Include raw data for debugging
   };
 };

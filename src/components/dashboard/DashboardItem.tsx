@@ -4,7 +4,21 @@ import { SegmentFilter } from './SegmentFilter'
 import { SegmentCombiner } from './SegmentCombiner'
 import { VisualizationPicker } from './VisualizationPicker'
 
-export function DashboardItem({ item, setDashboardItems, index }) {
+interface DashboardItemProps {
+  item: any;
+  setDashboardItems: (items: any[]) => void;
+  index: number;
+}
+
+export function DashboardItem({ item, setDashboardItems, index }: DashboardItemProps) {
+  // Update a specific item in the dashboard items array
+  const updateItem = (updatedItem: any) => {
+    setDashboardItems((prevItems: any[]) => {
+      const newItems = [...prevItems];
+      newItems[index] = updatedItem;
+      return newItems;
+    });
+  };
 
   return (
     <Tabs defaultValue="config">

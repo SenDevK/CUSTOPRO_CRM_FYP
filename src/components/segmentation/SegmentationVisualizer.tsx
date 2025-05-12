@@ -85,7 +85,7 @@ const SegmentationVisualizer = () => {
               <li>Are there customer records in the MongoDB database?</li>
               <li>Check the browser console (F12) for more detailed error messages</li>
             </ol>
-            <div className="mt-4">
+            <div className="mt-4 flex gap-2">
               <Button
                 onClick={() => runSegmentation('comprehensive')}
                 variant="outline"

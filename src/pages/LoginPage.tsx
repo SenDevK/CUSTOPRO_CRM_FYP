@@ -1,17 +1,20 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardFooter, 
-  CardHeader, 
-  CardTitle 
+import { useTheme } from "next-themes";
+import { Sun, Moon } from "lucide-react";
+import CustoProLogo from "@/components/CustoProLogo";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -23,15 +26,26 @@ import { toast } from "sonner";
 
 const LoginPage = () => {
   const navigate = useNavigate();
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("admin");
   const [isLoading, setIsLoading] = useState(false);
-  
+
+  // useEffect only runs on the client, so now we can safely show the UI
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const toggleTheme = () => {
+    setTheme(theme === 'dark' ? 'light' : 'dark');
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
+
     // Simulate authentication
     setTimeout(() => {
       setIsLoading(false);
@@ -43,18 +57,26 @@ const LoginPage = () => {
       }
     }, 1500);
   };
-  
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4 relative">
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={toggleTheme}
+        className="absolute top-4 right-4"
+        aria-label="Toggle theme"
+      >
+        {!mounted ? null : theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+      </Button>
       <div className="w-full max-w-md space-y-6">
         <div className="text-center">
-          <div className="mx-auto h-14 w-14 flex items-center justify-center rounded-full bg-crm-purple text-white text-2xl font-bold">
-            LS
+          <div className="flex justify-center">
+            <CustoProLogo size="lg" />
           </div>
-          <h1 className="mt-3 text-2xl font-bold">Lanka Smart CRM Hub</h1>
-          <p className="text-sm text-muted-foreground">Intelligent CRM for Sri Lankan SMEs</p>
+          <p className="mt-2 text-sm text-muted-foreground">Intelligent Customer Management Solution</p>
         </div>
-        
+
         <Card>
           <CardHeader>
             <CardTitle>Sign in to your account</CardTitle>
@@ -105,10 +127,10 @@ const LoginPage = () => {
             </CardFooter>
           </form>
         </Card>
-        
+
         <div className="text-center text-sm text-muted-foreground">
           <p>Demo credentials:</p>
-          <p>Email: demo@lankasmart.lk / Password: password123</p>
+          <p>Email: demo@custopro.com / Password: password123</p>
         </div>
       </div>
     </div>

@@ -62,7 +62,8 @@ export const customerData: Customer[] = [
     purchaseCount: 12,
     consentGiven: true,
     consentDate: "2023-01-15",
-    createdAt: "2023-01-15"
+    createdAt: "2023-01-15",
+    marketing_status: "active"
   },
   {
     id: "c2",
@@ -78,7 +79,8 @@ export const customerData: Customer[] = [
     purchaseCount: 7,
     consentGiven: true,
     consentDate: "2023-02-10",
-    createdAt: "2023-02-10"
+    createdAt: "2023-02-10",
+    marketing_status: "active"
   },
   {
     id: "c3",
@@ -93,7 +95,10 @@ export const customerData: Customer[] = [
     totalSpent: 12500,
     purchaseCount: 2,
     consentGiven: false,
-    createdAt: "2023-03-05"
+    createdAt: "2023-03-05",
+    marketing_status: "opted_out",
+    opt_out_date: "2023-03-20",
+    opt_out_reason: "Too many messages"
   },
   {
     id: "c4",
@@ -109,7 +114,8 @@ export const customerData: Customer[] = [
     purchaseCount: 18,
     consentGiven: true,
     consentDate: "2022-11-20",
-    createdAt: "2022-11-20"
+    createdAt: "2022-11-20",
+    marketing_status: "active"
   },
   {
     id: "c5",
@@ -125,7 +131,10 @@ export const customerData: Customer[] = [
     purchaseCount: 3,
     consentGiven: true,
     consentDate: "2022-09-15",
-    createdAt: "2022-09-15"
+    createdAt: "2022-09-15",
+    marketing_status: "deleted",
+    opt_out_date: "2023-02-15",
+    opt_out_reason: "Data deletion request"
   }
 ];
 

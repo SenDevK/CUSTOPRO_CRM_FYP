@@ -4,6 +4,7 @@
 
 // Using Vite's proxy feature to avoid CORS issues in development
 const API_BASE_URL = '/api';
+const SEGMENT_API_URL = `${API_BASE_URL}/segments`;
 
 // Define segment rule type
 export interface SegmentRule {
@@ -190,17 +191,53 @@ export const transformSegmentationData = (apiData: any) => {
  * Custom segment management API functions
  */
 
+// Check the health of the segment storage API
+export const checkSegmentApiHealth = async (): Promise<boolean> => {
+  try {
+    console.log('Checking segment API health...');
+    // Use the segments endpoint directly instead of a health endpoint
+    const response = await fetch(`${SEGMENT_API_URL}/custom-segments`, {
+      method: 'HEAD', // Use HEAD to just check if the endpoint is available without fetching data
+      headers: {
+        'Cache-Control': 'no-cache', // Prevent caching
+      },
+    });
+
+    console.log('Health check response status:', response.status);
+
+    if (!response.ok) {
+      console.error('Segment API health check failed:', response.status);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error checking segment API health:', error);
+    return false;
+  }
+};
+
 // Get all custom segments
 export const getCustomSegments = async (): Promise<Segment[]> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/segment/custom-segments`);
+    // First check if the API is healthy
+    const isHealthy = await checkSegmentApiHealth();
+    if (!isHealthy) {
+      console.warn('Segment API is not healthy, using mock data');
+      return loadSegmentsFromStorage();
+    }
+
+    console.log('Fetching custom segments from:', `${SEGMENT_API_URL}/custom-segments`);
+    const response = await fetch(`${SEGMENT_API_URL}/custom-segments`);
 
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.error || 'Failed to fetch custom segments');
     }
 
-    return await response.json();
+    const data = await response.json();
+    console.log('Received custom segments:', data);
+    return data;
   } catch (error) {
     console.error('Error fetching custom segments:', error);
     // Return mock data for development
@@ -211,7 +248,7 @@ export const getCustomSegments = async (): Promise<Segment[]> => {
 // Get a single custom segment by ID
 export const getCustomSegmentById = async (id: string): Promise<Segment | null> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/segment/custom-segments/${id}`);
+    const response = await fetch(`${SEGMENT_API_URL}/custom-segments/${id}`);
 
     if (!response.ok) {
       const errorData = await response.json();
@@ -230,7 +267,8 @@ export const getCustomSegmentById = async (id: string): Promise<Segment | null> 
 // Create a new custom segment
 export const createCustomSegment = async (segment: Omit<Segment, 'id' | 'createdAt' | 'updatedAt' | 'customerCount' | 'customerPercentage'>): Promise<Segment | null> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/segment/custom-segments`, {
+    console.log('Creating custom segment:', segment);
+    const response = await fetch(`${SEGMENT_API_URL}/custom-segments`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -243,7 +281,9 @@ export const createCustomSegment = async (segment: Omit<Segment, 'id' | 'created
       throw new Error(errorData.error || 'Failed to create segment');
     }
 
-    return await response.json();
+    const data = await response.json();
+    console.log('Created segment:', data);
+    return data;
   } catch (error) {
     console.error('Error creating segment:', error);
 
@@ -272,7 +312,7 @@ export const createCustomSegment = async (segment: Omit<Segment, 'id' | 'created
 // Update an existing custom segment
 export const updateCustomSegment = async (id: string, segment: Omit<Segment, 'id' | 'createdAt' | 'updatedAt'>): Promise<Segment | null> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/segment/custom-segments/${id}`, {
+    const response = await fetch(`${SEGMENT_API_URL}/custom-segments/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -315,7 +355,7 @@ export const updateCustomSegment = async (id: string, segment: Omit<Segment, 'id
 // Delete a custom segment
 export const deleteCustomSegment = async (id: string): Promise<boolean> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/segment/custom-segments/${id}`, {
+    const response = await fetch(`${SEGMENT_API_URL}/custom-segments/${id}`, {
       method: 'DELETE',
     });
 
@@ -344,7 +384,17 @@ export const deleteCustomSegment = async (id: string): Promise<boolean> => {
 // Preview a segment (get customer count and percentage)
 export const previewCustomSegment = async (segment: Omit<Segment, 'id' | 'createdAt' | 'updatedAt' | 'customerCount' | 'customerPercentage'>): Promise<{ count: number; percentage: number } | null> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/segment/preview-segment`, {
+    console.log('Previewing segment:', segment);
+    console.log('Segment rules:', JSON.stringify(segment.rules, null, 2));
+
+    // First check if the API is healthy
+    const isHealthy = await checkSegmentApiHealth();
+    if (!isHealthy) {
+      console.warn('Segment API is not healthy, using local calculation');
+      return await calculateSegmentSize(segment.rules);
+    }
+
+    const response = await fetch(`${SEGMENT_API_URL}/preview-segment`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -352,14 +402,28 @@ export const previewCustomSegment = async (segment: Omit<Segment, 'id' | 'create
       body: JSON.stringify(segment),
     });
 
+    console.log('Preview response status:', response.status);
+
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorText = await response.text();
+      console.error('Error response text:', errorText);
+
+      let errorData: { error?: string } = { error: 'Unknown error' };
+      try {
+        errorData = JSON.parse(errorText);
+      } catch (e) {
+        errorData = { error: errorText };
+      }
+
       throw new Error(errorData.error || 'Failed to preview segment');
     }
 
-    return await response.json();
+    const data = await response.json();
+    console.log('Preview result:', data);
+    return data;
   } catch (error) {
     console.error('Error previewing segment:', error);
+    console.log('Falling back to local segment size calculation');
 
     // Use our more realistic segment size calculation
     return await calculateSegmentSize(segment.rules);
@@ -475,33 +539,45 @@ export const getSegmentOptions = async (): Promise<any> => {
 
   try {
     console.log('Fetching segment options from API...');
-    // In a real implementation, this would call the backend API
-    // const response = await fetch(`${API_BASE_URL}/segment/segment-options`);
-    // const data = await response.json();
+    const response = await fetch(`${SEGMENT_API_URL}/segment-options`);
 
-    // For now, extract options from segmentation data
-    const segmentationData = await getSegmentationData();
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to fetch segment options');
+    }
 
-    const options = {
-      rfm_segments: Object.keys(segmentationData.summary?.value_based_rfm || {}),
-      categories: Object.keys(segmentationData.details?.preference_details?.category_distribution || {}),
-      materials: Object.keys(segmentationData.details?.preference_details?.material_distribution || {}),
-      preference_segments: Object.keys(segmentationData.summary?.preference || {}),
-      locations: ['New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix'] // Mock data for now
-    };
-
+    const options = await response.json();
     console.log('Segment options:', options);
     segmentOptionsCache = options;
     return options;
   } catch (error) {
     console.error('Error fetching segment options:', error);
-    return {
-      rfm_segments: ['Champions', 'Loyal Customers', 'Potential Loyalists', 'New Customers', 'At Risk', 'Lost Customers'],
-      categories: ['Clothing', 'Footwear', 'Accessories', 'Electronics'],
-      materials: ['Cotton', 'Leather', 'Synthetic', 'Wool', 'Denim', 'Polyester'],
-      preference_segments: ['Fashion Enthusiasts', 'Casual Shoppers', 'Seasonal Buyers', 'Brand Loyalists'],
-      locations: ['New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix']
-    };
+
+    // Fall back to extracting options from segmentation data
+    try {
+      const segmentationData = await getSegmentationData();
+
+      const options = {
+        rfm_segments: Object.keys(segmentationData.summary?.value_based_rfm || {}),
+        categories: Object.keys(segmentationData.details?.preference_details?.category_distribution || {}),
+        materials: Object.keys(segmentationData.details?.preference_details?.material_distribution || {}),
+        preference_segments: Object.keys(segmentationData.summary?.preference || {}),
+        locations: ['New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix'] // Mock data for now
+      };
+
+      console.log('Segment options (from segmentation data):', options);
+      segmentOptionsCache = options;
+      return options;
+    } catch (fallbackError) {
+      console.error('Error extracting segment options from segmentation data:', fallbackError);
+      return {
+        rfm_segments: ['Champions', 'Loyal Customers', 'Potential Loyalists', 'New Customers', 'At Risk', 'Lost Customers'],
+        categories: ['Clothing', 'Footwear', 'Accessories', 'Electronics'],
+        materials: ['Cotton', 'Leather', 'Synthetic', 'Wool', 'Denim', 'Polyester'],
+        preference_segments: ['Fashion Enthusiasts', 'Casual Shoppers', 'Seasonal Buyers', 'Brand Loyalists'],
+        locations: ['New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix']
+      };
+    }
   }
 };
 
@@ -760,5 +836,99 @@ const saveSegmentsToStorage = (segments: Segment[]): void => {
   }
 };
 
-// Initialize mock segments from storage
-const mockSegments: Segment[] = loadSegmentsFromStorage();
+// Get customers in a segment
+export const getSegmentCustomers = async (
+  segmentId: string,
+  page: number = 1,
+  limit: number = 50
+): Promise<any> => {
+  try {
+    console.log(`Fetching customers for segment ${segmentId}...`);
+    const response = await fetch(
+      `${SEGMENT_API_URL}/custom-segments/${segmentId}/customers?page=${page}&limit=${limit}`
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `Failed to fetch customers for segment ${segmentId}`);
+    }
+
+    const data = await response.json();
+    console.log(`Received customers for segment ${segmentId}:`, data);
+    return data;
+  } catch (error) {
+    console.error(`Error fetching customers for segment ${segmentId}:`, error);
+    return {
+      customers: [],
+      total: 0,
+      page: page,
+      limit: limit,
+      pages: 0
+    };
+  }
+};
+
+// Get analytics for a segment
+export const getSegmentAnalytics = async (segmentId: string): Promise<any> => {
+  try {
+    console.log(`Fetching analytics for segment ${segmentId}...`);
+    const response = await fetch(`${SEGMENT_API_URL}/custom-segments/${segmentId}/analytics`);
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `Failed to fetch analytics for segment ${segmentId}`);
+    }
+
+    const data = await response.json();
+    console.log(`Received analytics for segment ${segmentId}:`, data);
+    return data;
+  } catch (error) {
+    console.error(`Error fetching analytics for segment ${segmentId}:`, error);
+    // Return mock analytics data
+    return {
+      segment_id: segmentId,
+      segment_name: "Unknown Segment",
+      customer_count: 0,
+      age_distribution: {},
+      gender_distribution: {},
+      purchase_distribution: {},
+      rfm_distribution: {},
+      preference_distribution: {}
+    };
+  }
+};
+
+// Export customers for marketing
+export const exportSegmentCustomers = async (
+  segmentId: string,
+  exportType: 'email' | 'sms' | 'all' = 'all'
+): Promise<any> => {
+  try {
+    console.log(`Exporting customers for segment ${segmentId}...`);
+    const response = await fetch(`${SEGMENT_API_URL}/custom-segments/${segmentId}/export`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ export_type: exportType }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `Failed to export customers for segment ${segmentId}`);
+    }
+
+    const data = await response.json();
+    console.log(`Exported customers for segment ${segmentId}:`, data);
+    return data;
+  } catch (error) {
+    console.error(`Error exporting customers for segment ${segmentId}:`, error);
+    return {
+      segment_id: segmentId,
+      segment_name: "Unknown Segment",
+      export_type: exportType,
+      customer_count: 0,
+      customers: []
+    };
+  }
+};

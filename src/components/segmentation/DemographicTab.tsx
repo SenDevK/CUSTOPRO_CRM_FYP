@@ -1,262 +1,706 @@
-import React from 'react'
+import React, { useState, useMemo } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { ResponsiveContainer, PieChart as RePieChart, Pie, Cell, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from 'recharts'
+import {
+  ResponsiveContainer,
+  PieChart as RePieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Legend
+} from 'recharts'
 import { Badge } from '@/components/ui/badge'
 import { InfoCircledIcon } from '@radix-ui/react-icons'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
+// Define colors for consistent visualization
+const GENDER_COLORS = {
+  Male: '#8884d8',
+  Female: '#ff8042',
+  Other: '#00C49F',
+  Unknown: '#AAAAAA'
+};
+
+const AGE_COLORS = {
+  'Under18': '#8884d8',
+  'YoungAdult': '#83a6ed',
+  'Millennial': '#8dd1e1',
+  'GenX_Young': '#82ca9d',
+  'GenX_Older': '#a4de6c',
+  'BabyBoomer': '#d0ed57',
+  'Senior': '#ffc658',
+  'Elderly': '#ff8042',
+  'Unknown': '#AAAAAA',
+  // Add more age groups as needed
+};
+
 export function DemographicTab({ demographicData }) {
-  // Generate mock age data (will be replaced with real data in the future)
-  const ageData = [
-    { name: 'Under 18', value: 42, color: '#8B5CF6' },
-    { name: '18-24', value: 120, color: '#A78BFA' },
-    { name: '25-34', value: 235, color: '#C4B5FD' },
-    { name: '35-44', value: 180, color: '#F87171' },
-    { name: '45-54', value: 98, color: '#60A5FA' },
-    { name: '55+', value: 75, color: '#34D399' },
-  ]
+  // Extract gender and age data from combined segments
+  const { genderData, ageOnlyData, combinedData } = useMemo(() => {
+    // Initialize counters for each gender and age group
+    const genderCounts = {
+      Male: 0,
+      Female: 0,
+      Other: 0,
+      Unknown: 0
+    };
+
+    const ageCounts = {
+      Under18: 0,
+      YoungAdult: 0, // 18-24
+      Millennial: 0, // 25-34
+      GenX_Young: 0, // 35-44
+      GenX_Older: 0, // 45-54
+      BabyBoomer: 0, // 55-64
+      Senior: 0, // 65-74
+      Elderly: 0, // 75+
+      Unknown: 0
+    };
+
+    // Create a matrix for combined data
+    const combinedMatrix = {};
+
+    // Process each segment
+    demographicData.forEach(segment => {
+      // Parse the segment name to extract gender and age
+      const parts = segment.name.split('_');
+
+      // Extract gender (first part)
+      let gender = parts[0];
+      if (!['Male', 'Female', 'Other'].includes(gender)) {
+        gender = 'Unknown';
+      }
+
+      // Extract age group (remaining parts after removing "Age")
+      let ageGroup = 'Unknown';
+      if (parts.length > 2 && parts[1] === 'Age') {
+        // Join the remaining parts to form the age group
+        ageGroup = parts.slice(2).join('_');
+      }
+
+      // Update gender counts
+      genderCounts[gender] = (genderCounts[gender] || 0) + segment.value;
+
+      // Update age counts
+      ageCounts[ageGroup] = (ageCounts[ageGroup] || 0) + segment.value;
+
+      // Update combined matrix
+      if (!combinedMatrix[ageGroup]) {
+        combinedMatrix[ageGroup] = {
+          Male: 0,
+          Female: 0,
+          Other: 0,
+          Unknown: 0
+        };
+      }
+      combinedMatrix[ageGroup][gender] = segment.value;
+    });
+
+    // Convert gender counts to array format for charts
+    const genderDataArray = Object.entries(genderCounts).map(([gender, value]) => ({
+      name: gender,
+      displayName: gender,
+      value,
+      color: GENDER_COLORS[gender] || '#AAAAAA'
+    }));
+
+    // Convert age counts to array format for charts
+    const ageDataArray = Object.entries(ageCounts)
+      .filter(([_, value]) => value > 0) // Only include age groups with data
+      .map(([age, value]) => ({
+        name: age,
+        displayName: age.replace(/_/g, ' '),
+        value,
+        color: AGE_COLORS[age] || '#AAAAAA'
+      }));
+
+    // Convert combined matrix to array format for table
+    const combinedDataArray = Object.entries(combinedMatrix).map(([age, genders]) => ({
+      ageGroup: age,
+      displayAge: age.replace(/_/g, ' '),
+      ...genders,
+      total: Object.values(genders).reduce((sum: number, val: number) => sum + val, 0)
+    }));
+
+    // Calculate total customers
+    const totalCustomers = Object.values(genderCounts).reduce((sum: number, val: number) => sum + val, 0);
+
+    // Calculate percentages
+    const genderDataWithPercentage = genderDataArray.map(item => ({
+      ...item,
+      percentage: Math.round((item.value / totalCustomers) * 100)
+    }));
+
+    const ageDataWithPercentage = ageDataArray.map(item => ({
+      ...item,
+      percentage: Math.round((item.value / totalCustomers) * 100)
+    }));
+
+    return {
+      genderData: genderDataWithPercentage,
+      ageOnlyData: ageDataWithPercentage,
+      combinedData: combinedDataArray,
+      totalCustomers
+    };
+  }, [demographicData]);
 
   // Calculate total customers
-  const totalCustomers = demographicData.reduce((sum, item) => sum + item.value, 0)
+  const totalCustomers = useMemo(() =>
+    genderData.reduce((sum, item) => sum + item.value, 0),
+    [genderData]
+  );
 
-  // Find dominant gender
-  const dominantGender = demographicData.reduce(
-    (max, item) => (item.value > max.value ? item : max),
-    { name: '', value: 0 }
-  )
-
-  // Calculate gender percentages
-  const genderPercentages = demographicData.map(item => ({
-    ...item,
-    percentage: Math.round((item.value / totalCustomers) * 100)
-  }))
+  // Check if we have age data
+  const hasAgeData = ageOnlyData && ageOnlyData.length > 0;
 
   return (
     <div className="space-y-6">
-      {/* Key Insights Card */}
+      {/* Summary Card */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            Key Demographic Insights
-            <Badge variant="outline" className="ml-2">At a Glance</Badge>
-          </CardTitle>
+          <CardTitle>Demographic Segmentation Summary</CardTitle>
           <CardDescription>
-            Simple breakdown of your customer demographics
+            Overview of customer demographic distribution
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="p-4 mb-4 bg-slate-50 rounded-lg border border-slate-100">
+            <h3 className="text-sm font-medium mb-2">What is Demographic Segmentation?</h3>
+            <p className="text-sm text-muted-foreground">
+              Demographic segmentation divides your customer base into groups based on age, gender, and other demographic characteristics.
+              This helps you understand the composition of your customer base.
+            </p>
+            <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-2">
+              <div className="flex items-center gap-2 text-xs text-blue-600">
+                <div className="h-2 w-2 rounded-full bg-blue-600"></div>
+                <span>Visualize customer demographics</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-green-600">
+                <div className="h-2 w-2 rounded-full bg-green-600"></div>
+                <span>Analyze demographic distribution</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-purple-600">
+                <div className="h-2 w-2 rounded-full bg-purple-600"></div>
+                <span>Monitor demographic data quality</span>
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-muted rounded-lg p-4 text-center">
               <h3 className="text-sm font-medium text-muted-foreground mb-1">Total Customers</h3>
               <p className="text-3xl font-bold">{totalCustomers.toLocaleString()}</p>
-              <p className="text-sm text-muted-foreground mt-1">across all segments</p>
+              <p className="text-sm text-muted-foreground mt-1">in demographic segmentation</p>
             </div>
 
-            <div className="bg-muted rounded-lg p-4 text-center">
-              <h3 className="text-sm font-medium text-muted-foreground mb-1">Dominant Gender</h3>
-              <p className="text-3xl font-bold">{dominantGender.name}</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                {dominantGender.percentage}% of your customer base
+            <div className="bg-muted rounded-lg p-4">
+              <h3 className="text-sm font-medium text-muted-foreground mb-2">Gender Distribution</h3>
+              <div className="flex items-center gap-3">
+                {genderData.map((gender) => (
+                  <div key={gender.name} className="flex flex-col items-center">
+                    <div className="h-8 w-8 rounded-full flex items-center justify-center"
+                      style={{ backgroundColor: gender.color + '30', color: gender.color }}>
+                      {gender.name === 'Male' ? 'M' : gender.name === 'Female' ? 'F' : '?'}
+                    </div>
+                    <span className="text-xs mt-1">{gender.percentage}%</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground mt-3">
+                Click the Gender Distribution tab for detailed breakdown
               </p>
             </div>
 
-            <div className="bg-muted rounded-lg p-4 text-center">
-              <h3 className="text-sm font-medium text-muted-foreground mb-1">Gender Balance</h3>
-              <div className="flex justify-center items-center h-10 mt-2">
-                {genderPercentages.map((item) => (
-                  <div
-                    key={item.name}
-                    style={{
-                      width: `${item.percentage}%`,
-                      backgroundColor: item.color,
-                      height: '100%'
-                    }}
-                    className="first:rounded-l-md last:rounded-r-md"
-                    title={`${item.name}: ${item.percentage}%`}
-                  />
-                ))}
-              </div>
-              <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                <span>0%</span>
-                <span>50%</span>
-                <span>100%</span>
-              </div>
+            <div className="bg-muted rounded-lg p-4">
+              <h3 className="text-sm font-medium text-muted-foreground mb-2">Age Insights</h3>
+              {hasAgeData ? (
+                <>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs">Youngest Age Group:</span>
+                    <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                      {ageOnlyData[0]?.displayName || 'Unknown'}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs">Largest Age Group:</span>
+                    <Badge variant="outline" className="bg-green-50 text-green-700">
+                      {ageOnlyData.reduce((max, item) => item.value > max.value ? item : max, {value: 0})?.displayName || 'Unknown'}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-3">
+                    Click the Age Distribution tab for detailed breakdown
+                  </p>
+                </>
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-sm text-muted-foreground">No age data available</p>
+                </div>
+              )}
             </div>
           </div>
-
-
         </CardContent>
       </Card>
 
-      {/* Gender Distribution */}
+      {/* Main Demographic Tabs */}
       <Card>
         <CardHeader>
-          <CardTitle>Gender Distribution</CardTitle>
+          <CardTitle>Demographic Segmentation</CardTitle>
           <CardDescription>
-            Breakdown of customers by gender identity
+            View customer demographics by different dimensions
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="chart">
+          <Tabs defaultValue="gender">
             <TabsList className="mb-4">
-              <TabsTrigger value="chart">Chart View</TabsTrigger>
-              <TabsTrigger value="table">Table View</TabsTrigger>
+              <TabsTrigger value="gender">Gender Distribution</TabsTrigger>
+              <TabsTrigger value="age">Age Distribution</TabsTrigger>
+              <TabsTrigger value="combined">Combined View</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="chart">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RePieChart>
-                      <Tooltip
-                        formatter={(value) => [`${value} customers (${Math.round((value/totalCustomers)*100)}%)`, 'Count']}
-                        contentStyle={{ borderRadius: '8px' }}
-                      />
-                      <Pie
-                        data={demographicData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="value"
-                        nameKey="name"
-                        label={({ name, value }) => `${name}: ${value}`}
-                      >
-                        {demographicData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                    </RePieChart>
-                  </ResponsiveContainer>
-                </div>
-
-                <div className="flex flex-col justify-center">
-                  <h3 className="text-lg font-medium mb-4">Gender Breakdown</h3>
-                  <div className="space-y-4">
-                    {demographicData.map((segment) => (
-                      <div key={segment.name} className="space-y-1">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: segment.color }}></div>
-                            <div className="font-medium">{segment.name}</div>
-                          </div>
-                          <div className="font-medium">{segment.value} customers</div>
-                        </div>
-                        <div className="w-full bg-muted rounded-full h-2">
-                          <div
-                            className="h-2 rounded-full"
-                            style={{
-                              width: `${(segment.value / totalCustomers) * 100}%`,
-                              backgroundColor: segment.color
-                            }}
-                          />
-                        </div>
-                        <div className="text-xs text-muted-foreground text-right">
-                          {Math.round((segment.value / totalCustomers) * 100)}% of total
-                        </div>
-                      </div>
-                    ))}
+            {/* Gender Distribution Tab */}
+            <TabsContent value="gender">
+              <div className="space-y-4">
+                <div className="p-4 mb-4 bg-blue-50 rounded-lg border border-blue-100">
+                  <h3 className="text-sm font-medium text-blue-800 mb-2">Gender Distribution</h3>
+                  <p className="text-sm text-blue-700 mb-3">
+                    This visualization shows the distribution of your customers by gender. Gender is an important demographic factor that can help you understand your customer base better.
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-white p-3 rounded-md border border-blue-100">
+                      <h4 className="text-xs font-medium text-blue-800 mb-2">What You're Seeing</h4>
+                      <ul className="text-xs text-blue-700 space-y-1 list-disc pl-4">
+                        <li>Distribution of customers across different gender categories</li>
+                        <li>Percentage of customers in each gender group</li>
+                        <li>Data quality indicators showing completeness of gender information</li>
+                      </ul>
+                    </div>
+                    <div className="bg-white p-3 rounded-md border border-blue-100">
+                      <h4 className="text-xs font-medium text-blue-800 mb-2">Data Sources</h4>
+                      <ul className="text-xs text-blue-700 space-y-1 list-disc pl-4">
+                        <li>Customer profile information collected during registration</li>
+                        <li>Gender data from customer records in your database</li>
+                        <li>Segmentation analysis of your customer base</li>
+                      </ul>
+                    </div>
                   </div>
                 </div>
+
+                <Tabs defaultValue="chart">
+                  <TabsList className="mb-4">
+                    <TabsTrigger value="chart">Chart View</TabsTrigger>
+                    <TabsTrigger value="table">Table View</TabsTrigger>
+                  </TabsList>
+
+                  {/* Chart View Tab */}
+                  <TabsContent value="chart">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Pie Chart */}
+                      <div className="h-[300px]">
+                        <div className="mb-2 flex justify-between items-center">
+                          <h3 className="text-sm font-medium">Gender Distribution (Pie Chart)</h3>
+                          <Badge variant="outline" className="bg-blue-50 text-blue-700">Proportional View</Badge>
+                        </div>
+                        <ResponsiveContainer width="100%" height="90%">
+                          <RePieChart>
+                            <Tooltip
+                              formatter={(value) => [`${value.toLocaleString()} customers`, 'Count']}
+                              contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0' }}
+                            />
+                            <Pie
+                              data={genderData}
+                              cx="50%"
+                              cy="50%"
+                              outerRadius={100}
+                              dataKey="value"
+                              nameKey="displayName"
+                              label={({ displayName, percent }) => `${displayName}: ${(percent * 100).toFixed(0)}%`}
+                            >
+                              {genderData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
+                              ))}
+                            </Pie>
+                            <Legend formatter={(value) => <span className="text-sm font-medium">{value}</span>} />
+                          </RePieChart>
+                        </ResponsiveContainer>
+                      </div>
+
+                      {/* Bar Chart */}
+                      <div className="h-[300px]">
+                        <div className="mb-2 flex justify-between items-center">
+                          <h3 className="text-sm font-medium">Gender Distribution (Bar Chart)</h3>
+                          <Badge variant="outline" className="bg-blue-50 text-blue-700">Quantitative View</Badge>
+                        </div>
+                        <ResponsiveContainer width="100%" height="90%">
+                          <BarChart
+                            data={genderData}
+                            layout="vertical"
+                            margin={{ top: 5, right: 30, left: 50, bottom: 5 }}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis type="number" />
+                            <YAxis
+                              dataKey="displayName"
+                              type="category"
+                              width={80}
+                              tick={{ fontSize: 12, fontWeight: 500 }}
+                            />
+                            <Tooltip
+                              formatter={(value) => [`${value.toLocaleString()} customers`, 'Count']}
+                              contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0' }}
+                            />
+                            <Bar
+                              dataKey="value"
+                              name="Customers"
+                              radius={[0, 4, 4, 0]}
+                            >
+                              {genderData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </TabsContent>
+
+                  {/* Table View Tab */}
+                  <TabsContent value="table">
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse">
+                        <thead>
+                          <tr className="border-b">
+                            <th className="text-left py-2">Gender</th>
+                            <th className="text-right py-2">Count</th>
+                            <th className="text-right py-2">Percentage</th>
+                            <th className="text-left py-2">Distribution</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {genderData.map((segment) => (
+                            <tr key={segment.name} className="border-b">
+                              <td className="py-3">
+                                <div className="flex items-center gap-2">
+                                  <div
+                                    className="w-3 h-3 rounded-full"
+                                    style={{ backgroundColor: segment.color }}
+                                  ></div>
+                                  <span className="font-medium">{segment.displayName}</span>
+                                </div>
+                              </td>
+                              <td className="text-right py-3">{segment.value.toLocaleString()}</td>
+                              <td className="text-right py-3">{segment.percentage}%</td>
+                              <td className="py-3 w-1/4">
+                                <div className="w-full bg-muted rounded-full h-2">
+                                  <div
+                                    className="h-2 rounded-full"
+                                    style={{
+                                      width: `${segment.percentage}%`,
+                                      backgroundColor: segment.color
+                                    }}
+                                  />
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                          <tr className="bg-muted/30">
+                            <td className="py-3 font-medium">Total</td>
+                            <td className="text-right py-3 font-medium">{totalCustomers.toLocaleString()}</td>
+                            <td className="text-right py-3 font-medium">100%</td>
+                            <td className="py-3"></td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </TabsContent>
+
+
+                </Tabs>
               </div>
             </TabsContent>
 
-            <TabsContent value="table">
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left py-2">Gender</th>
-                      <th className="text-right py-2">Count</th>
-                      <th className="text-right py-2">Percentage</th>
-                      <th className="text-left py-2">Visualization</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {demographicData.map((segment) => (
-                      <tr key={segment.name} className="border-b">
-                        <td className="py-3 font-medium">{segment.name}</td>
-                        <td className="text-right py-3">{segment.value.toLocaleString()}</td>
-                        <td className="text-right py-3">
-                          {Math.round((segment.value / totalCustomers) * 100)}%
-                        </td>
-                        <td className="py-3">
-                          <div className="w-full bg-muted rounded-full h-2">
-                            <div
-                              className="h-2 rounded-full"
-                              style={{
-                                width: `${(segment.value / totalCustomers) * 100}%`,
-                                backgroundColor: segment.color
-                              }}
-                            />
+            {/* Age Distribution Tab */}
+            <TabsContent value="age">
+              {hasAgeData ? (
+                <div className="space-y-4">
+                  <div className="p-4 mb-4 bg-amber-50 rounded-lg border border-amber-100">
+                    <h3 className="text-sm font-medium text-amber-800 mb-2">Age Distribution</h3>
+                    <p className="text-sm text-amber-700 mb-3">
+                      This visualization shows the distribution of your customers across different age groups. Age is an important demographic factor that can help you understand your customer base better.
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="bg-white p-3 rounded-md border border-amber-100">
+                        <h4 className="text-xs font-medium text-amber-800 mb-2">What You're Seeing</h4>
+                        <ul className="text-xs text-amber-700 space-y-1 list-disc pl-4">
+                          <li>Distribution of customers across different age brackets</li>
+                          <li>Percentage of customers in each age group</li>
+                          <li>Data quality indicators showing completeness of age information</li>
+                        </ul>
+                      </div>
+                      <div className="bg-white p-3 rounded-md border border-amber-100">
+                        <h4 className="text-xs font-medium text-amber-800 mb-2">Data Sources</h4>
+                        <ul className="text-xs text-amber-700 space-y-1 list-disc pl-4">
+                          <li>Customer profile information collected during registration</li>
+                          <li>Age data from customer records in your database</li>
+                          <li>Segmentation analysis of your customer base</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Tabs defaultValue="chart">
+                    <TabsList className="mb-4">
+                      <TabsTrigger value="chart">Chart View</TabsTrigger>
+                      <TabsTrigger value="table">Table View</TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="chart">
+                      <div className="space-y-6">
+                        <div>
+                          <div className="mb-2 flex justify-between items-center">
+                            <h3 className="text-sm font-medium">Age Group Distribution</h3>
+                            <Badge variant="outline" className="bg-amber-50 text-amber-700">Bar Chart View</Badge>
                           </div>
-                        </td>
+                          <div className="h-[350px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart data={ageOnlyData} margin={{ top: 10, right: 30, left: 0, bottom: 20 }}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis
+                                  dataKey="displayName"
+                                  angle={-45}
+                                  textAnchor="end"
+                                  height={70}
+                                  tick={{ fontSize: 12 }}
+                                />
+                                <YAxis />
+                                <Tooltip
+                                  formatter={(value) => [`${value.toLocaleString()} customers`, 'Count']}
+                                  labelFormatter={(label) => `Age Group: ${label}`}
+                                  contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0' }}
+                                />
+                                <Legend />
+                                <Bar dataKey="value" name="Customers" radius={[4, 4, 0, 0]}>
+                                  {ageOnlyData.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={entry.color} />
+                                  ))}
+                                </Bar>
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div className="p-4 bg-white rounded-lg border">
+                            <h4 className="text-sm font-medium mb-2">Largest Age Group</h4>
+                            <div className="flex items-center gap-3">
+                              <div className="h-10 w-10 rounded-full flex items-center justify-center"
+                                style={{
+                                  backgroundColor: ageOnlyData.reduce((max, item) => item.value > max.value ? item : max, {value: 0})?.color + '30',
+                                  color: ageOnlyData.reduce((max, item) => item.value > max.value ? item : max, {value: 0})?.color
+                                }}>
+                                <span className="text-lg font-bold">
+                                  {ageOnlyData.reduce((max, item) => item.value > max.value ? item : max, {value: 0})?.displayName?.charAt(0) || '?'}
+                                </span>
+                              </div>
+                              <div>
+                                <p className="font-medium">
+                                  {ageOnlyData.reduce((max, item) => item.value > max.value ? item : max, {value: 0})?.displayName || 'Unknown'}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {ageOnlyData.reduce((max, item) => item.value > max.value ? item : max, {value: 0})?.percentage || 0}% of customers
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="p-4 bg-white rounded-lg border">
+                            <h4 className="text-sm font-medium mb-2">Age Distribution</h4>
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="text-xs text-muted-foreground">Younger</span>
+                              <div className="flex-1 h-2 rounded-full bg-gradient-to-r from-blue-500 via-green-500 to-amber-500"></div>
+                              <span className="text-xs text-muted-foreground">Older</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-2">
+                              {ageOnlyData.find(a => a.name === 'YoungAdult' || a.name === 'Under18')?.percentage > 40 ?
+                                "Your customer base skews younger" :
+                                ageOnlyData.find(a => a.name === 'BabyBoomer' || a.name === 'Senior' || a.name === 'Elderly')?.percentage > 40 ?
+                                "Your customer base skews older" :
+                                "Your customer base has a balanced age distribution"}
+                            </p>
+                          </div>
+
+                          <div className="p-4 bg-white rounded-lg border">
+                            <h4 className="text-sm font-medium mb-2">Age Data Quality</h4>
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-xs">Quality Score:</span>
+                              <Badge variant="outline" className={
+                                (ageOnlyData.find(a => a.name === 'Unknown')?.percentage || 0) < 5 ?
+                                "bg-green-50 text-green-700" :
+                                (ageOnlyData.find(a => a.name === 'Unknown')?.percentage || 0) < 15 ?
+                                "bg-amber-50 text-amber-700" :
+                                "bg-red-50 text-red-700"
+                              }>
+                                {(ageOnlyData.find(a => a.name === 'Unknown')?.percentage || 0) < 5 ?
+                                  "High Quality" :
+                                  (ageOnlyData.find(a => a.name === 'Unknown')?.percentage || 0) < 15 ?
+                                  "Moderate Quality" :
+                                  "Low Quality"
+                                }
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              {(ageOnlyData.find(a => a.name === 'Unknown')?.percentage || 0) < 5 ?
+                                "Your age data is comprehensive and reliable for decision-making." :
+                                (ageOnlyData.find(a => a.name === 'Unknown')?.percentage || 0) < 15 ?
+                                "Your age data has some gaps but is generally usable." :
+                                "Your age data has significant gaps that may affect analysis reliability."
+                              }
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="table">
+                      <div className="overflow-x-auto">
+                        <table className="w-full border-collapse">
+                          <thead>
+                            <tr className="border-b">
+                              <th className="text-left py-2">Age Group</th>
+                              <th className="text-right py-2">Count</th>
+                              <th className="text-right py-2">Percentage</th>
+                              <th className="text-left py-2">Distribution</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {ageOnlyData.map((segment) => (
+                              <tr key={segment.name} className="border-b">
+                                <td className="py-3 font-medium">{segment.displayName}</td>
+                                <td className="text-right py-3">{segment.value.toLocaleString()}</td>
+                                <td className="text-right py-3">{segment.percentage}%</td>
+                                <td className="py-3 w-1/4">
+                                  <div className="w-full bg-muted rounded-full h-2">
+                                    <div
+                                      className="h-2 rounded-full"
+                                      style={{
+                                        width: `${segment.percentage}%`,
+                                        backgroundColor: segment.color
+                                      }}
+                                    />
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                            <tr className="bg-muted/30">
+                              <td className="py-3 font-medium">Total</td>
+                              <td className="text-right py-3 font-medium">
+                                {ageOnlyData.reduce((sum, item) => sum + item.value, 0).toLocaleString()}
+                              </td>
+                              <td className="text-right py-3 font-medium">100%</td>
+                              <td className="py-3"></td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </TabsContent>
+
+
+                  </Tabs>
+                </div>
+              ) : (
+                <div className="p-8 text-center">
+                  <div className="flex flex-col items-center justify-center space-y-4">
+                    <InfoCircledIcon className="h-12 w-12 text-muted-foreground" />
+                    <div className="space-y-2">
+                      <h3 className="text-lg font-medium">No Age Data Available</h3>
+                      <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                        Age distribution data is not available from the segmentation backend.
+                        This could be because age data is missing in customer profiles or the segmentation model needs to be updated.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </TabsContent>
+
+            {/* Combined View Tab */}
+            <TabsContent value="combined">
+              <div className="space-y-4">
+                <div className="bg-muted/30 p-4 rounded-md mb-4">
+                  <h3 className="text-lg font-medium mb-2">Combined Age & Gender Distribution</h3>
+                  <p className="text-sm text-muted-foreground">
+                    This table shows the breakdown of customers by both age group and gender, allowing you to see the intersection of these demographic attributes.
+                  </p>
+                </div>
+
+                <div className="rounded-md border overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b bg-muted/50">
+                        <th className="p-3 text-left font-medium">Age Group</th>
+                        <th className="p-3 text-right font-medium">Male</th>
+                        <th className="p-3 text-right font-medium">Female</th>
+                        <th className="p-3 text-right font-medium">Other</th>
+                        <th className="p-3 text-right font-medium">Unknown</th>
+                        <th className="p-3 text-right font-medium">Total</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {combinedData.map((item, i) => (
+                        <tr key={i} className={i % 2 === 0 ? 'bg-muted/20' : ''}>
+                          <td className="p-3 font-medium">{item.displayAge}</td>
+                          <td className="p-3 text-right">
+                            {item.Male.toLocaleString()}
+                            <span className="text-muted-foreground text-xs ml-1">
+                              ({Math.round((item.Male / item.total) * 100) || 0}%)
+                            </span>
+                          </td>
+                          <td className="p-3 text-right">
+                            {item.Female.toLocaleString()}
+                            <span className="text-muted-foreground text-xs ml-1">
+                              ({Math.round((item.Female / item.total) * 100) || 0}%)
+                            </span>
+                          </td>
+                          <td className="p-3 text-right">
+                            {item.Other.toLocaleString()}
+                            <span className="text-muted-foreground text-xs ml-1">
+                              ({Math.round((item.Other / item.total) * 100) || 0}%)
+                            </span>
+                          </td>
+                          <td className="p-3 text-right">
+                            {item.Unknown.toLocaleString()}
+                            <span className="text-muted-foreground text-xs ml-1">
+                              ({Math.round((item.Unknown / item.total) * 100) || 0}%)
+                            </span>
+                          </td>
+                          <td className="p-3 text-right font-medium">{item.total.toLocaleString()}</td>
+                        </tr>
+                      ))}
+                      <tr className="border-t bg-muted/30">
+                        <td className="p-3 font-medium">Total</td>
+                        <td className="p-3 text-right font-medium">
+                          {genderData.find(g => g.name === 'Male')?.value.toLocaleString() || 0}
+                        </td>
+                        <td className="p-3 text-right font-medium">
+                          {genderData.find(g => g.name === 'Female')?.value.toLocaleString() || 0}
+                        </td>
+                        <td className="p-3 text-right font-medium">
+                          {genderData.find(g => g.name === 'Other')?.value.toLocaleString() || 0}
+                        </td>
+                        <td className="p-3 text-right font-medium">
+                          {genderData.find(g => g.name === 'Unknown')?.value.toLocaleString() || 0}
+                        </td>
+                        <td className="p-3 text-right font-medium">{totalCustomers.toLocaleString()}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </TabsContent>
           </Tabs>
-        </CardContent>
-      </Card>
-
-      {/* Age Distribution (Placeholder) */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Age Distribution</CardTitle>
-              <CardDescription>
-                Breakdown of customers by age group
-              </CardDescription>
-            </div>
-            <Badge variant="outline">Coming Soon</Badge>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={ageData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip formatter={(value) => [`${value} customers`, 'Count']} />
-                  <Legend />
-                  <Bar dataKey="value" name="Customers" radius={[4, 4, 0, 0]}>
-                    {ageData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div className="flex flex-col justify-center">
-              <h3 className="text-lg font-medium mb-4">Age Insights</h3>
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">
-                  <span className="font-medium text-foreground">Primary age group:</span> 25-34 years (35% of customers)
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  <span className="font-medium text-foreground">Secondary age group:</span> 35-44 years (24% of customers)
-                </p>
-              </div>
-
-
-            </div>
-          </div>
-
-          <div className="mt-6 p-4 border border-dashed rounded-lg bg-muted/50">
-            <div className="flex items-center gap-2">
-              <InfoCircledIcon className="h-5 w-5 text-amber-500" />
-              <p className="text-sm text-muted-foreground">
-                <span className="font-medium text-foreground">Note:</span> This visualization uses sample data. Connect your customer age data to see actual age distribution.
-              </p>
-            </div>
-          </div>
         </CardContent>
       </Card>
     </div>

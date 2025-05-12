@@ -25,6 +25,9 @@ export interface Customer {
   consentDate?: string;
   notes?: string;
   createdAt: string;
+  marketing_status?: 'active' | 'opted_out' | 'deleted' | 'inactive';
+  opt_out_date?: string;
+  opt_out_reason?: string;
 }
 
 export interface DashboardMetric {

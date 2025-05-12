@@ -19,6 +19,10 @@ import {
   deleteCustomSegment,
   previewCustomSegment,
   getSegmentOptions,
+  exportSegmentCustomers,
+  getSegmentAnalytics,
+  getSegmentCustomers,
+  checkSegmentApiHealth,
   Segment as SegmentType,
   SegmentRule
 } from '@/services/segmentationApi'
@@ -43,10 +47,39 @@ export function SegmentBuilder() {
   const [preferenceSegmentOptions, setPreferenceSegmentOptions] = useState<string[]>([])
   const [locationOptions, setLocationOptions] = useState<string[]>([])
 
+  // API health check state
+  const [apiHealthy, setApiHealthy] = useState<boolean | null>(null)
+  const [checkingHealth, setCheckingHealth] = useState(false)
+
+  // Check API health
+  const checkApiHealth = async () => {
+    setCheckingHealth(true)
+    try {
+      console.log('Checking segment API health...')
+      const isHealthy = await checkSegmentApiHealth()
+      console.log('API health check result:', isHealthy)
+      setApiHealthy(isHealthy)
+
+      if (isHealthy) {
+        // If API is healthy, reload data
+        console.log('API is healthy, reloading data...')
+        await loadSegments()
+        await loadSegmentOptions()
+        console.log('Data reloaded successfully')
+      } else {
+        console.log('API is not healthy, using local data')
+      }
+    } catch (error) {
+      console.error('Error checking API health:', error)
+      setApiHealthy(false)
+    } finally {
+      setCheckingHealth(false)
+    }
+  }
+
   // Load segments and options on component mount
   useEffect(() => {
-    loadSegments()
-    loadSegmentOptions()
+    checkApiHealth()
   }, [])
 
   // Load segments from API
@@ -119,7 +152,30 @@ export function SegmentBuilder() {
     if (currentSegment.rules && currentSegment.rules.length > 0) {
       setPreviewLoading(true)
       try {
-        const data = await previewCustomSegment(currentSegment as any)
+        // Log the rules for debugging
+        console.log('Previewing segment with rules:', JSON.stringify(currentSegment.rules, null, 2))
+
+        // Make sure all rules have the correct format
+        const formattedRules = (currentSegment.rules as SegmentRule[]).map(rule => {
+          // Make a copy of the rule to avoid modifying the original
+          const formattedRule = { ...rule }
+
+          // Ensure values are properly formatted for the backend
+          if (rule.type === 'gender' && typeof rule.value === 'string') {
+            // Gender values should be capitalized
+            formattedRule.value = rule.value.charAt(0).toUpperCase() + rule.value.slice(1)
+          }
+
+          return formattedRule
+        })
+
+        console.log('Formatted rules:', JSON.stringify(formattedRules, null, 2))
+
+        const data = await previewCustomSegment({
+          ...currentSegment,
+          rules: formattedRules
+        } as any)
+
         setPreviewData(data)
         console.log('Preview data:', data) // Log the preview data
       } catch (error) {
@@ -152,25 +208,49 @@ export function SegmentBuilder() {
     setLoading(true)
 
     try {
+      // Format rules for backend
+      const formattedRules = (currentSegment.rules as SegmentRule[]).map(rule => {
+        // Make a copy of the rule to avoid modifying the original
+        const formattedRule = { ...rule }
+
+        // Ensure values are properly formatted for the backend
+        if (rule.type === 'gender' && typeof rule.value === 'string') {
+          // Gender values should be capitalized
+          formattedRule.value = rule.value.charAt(0).toUpperCase() + rule.value.slice(1)
+        }
+
+        return formattedRule
+      })
+
+      console.log('Saving segment with formatted rules:', JSON.stringify(formattedRules, null, 2))
+
+      // Create a formatted segment object
+      const formattedSegment = {
+        ...currentSegment,
+        rules: formattedRules
+      }
+
       // Check if we're editing an existing segment or creating a new one
       if (currentSegment.id) {
         // Update existing segment
         const updatedSegment = await updateCustomSegment(
           currentSegment.id,
-          currentSegment as Omit<SegmentType, 'id' | 'createdAt' | 'updatedAt'>
+          formattedSegment as Omit<SegmentType, 'id' | 'createdAt' | 'updatedAt'>
         )
 
         if (updatedSegment) {
           setSegments(segments.map(s => s.id === updatedSegment.id ? updatedSegment : s))
+          console.log('Successfully updated segment:', updatedSegment)
         }
       } else {
         // Create new segment
         const newSegment = await createCustomSegment(
-          currentSegment as Omit<SegmentType, 'id' | 'createdAt' | 'updatedAt' | 'customerCount' | 'customerPercentage'>
+          formattedSegment as Omit<SegmentType, 'id' | 'createdAt' | 'updatedAt' | 'customerCount' | 'customerPercentage'>
         )
 
         if (newSegment) {
           setSegments([...segments, newSegment])
+          console.log('Successfully created new segment:', newSegment)
         }
       }
 
@@ -331,9 +411,9 @@ export function SegmentBuilder() {
               <SelectValue placeholder="Select gender" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="male">Male</SelectItem>
-              <SelectItem value="female">Female</SelectItem>
-              <SelectItem value="other">Other</SelectItem>
+              <SelectItem value="Male">Male</SelectItem>
+              <SelectItem value="Female">Female</SelectItem>
+              <SelectItem value="Other">Other</SelectItem>
             </SelectContent>
           </Select>
         )
@@ -547,11 +627,8 @@ export function SegmentBuilder() {
 
     // Special case for gender
     if (rule.type === 'gender') {
-      switch (rule.value) {
-        case 'male': valueLabel = 'Male'; break
-        case 'female': valueLabel = 'Female'; break
-        case 'other': valueLabel = 'Other'; break
-      }
+      // Values are already capitalized, no need to transform
+      valueLabel = rule.value;
     }
 
     return `${typeLabel} ${operatorLabel} ${valueLabel}`
@@ -561,12 +638,70 @@ export function SegmentBuilder() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Segment Builder</CardTitle>
-          <CardDescription>
-            Create custom segments based on customer attributes and behaviors
-          </CardDescription>
+          <div className="flex justify-between items-start">
+            <div>
+              <CardTitle>Segment Builder</CardTitle>
+              <CardDescription>
+                Create custom segments based on customer attributes and behaviors
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              {apiHealthy === null ? (
+                <span className="text-xs text-muted-foreground">Checking API...</span>
+              ) : apiHealthy ? (
+                <span className="text-xs text-green-500 flex items-center gap-1">
+                  <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                  Segment API Connected
+                </span>
+              ) : (
+                <span className="text-xs text-red-500 flex items-center gap-1">
+                  <div className="h-2 w-2 rounded-full bg-red-500"></div>
+                  Segment API Disconnected
+                </span>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={checkApiHealth}
+                disabled={checkingHealth}
+                title="Check segment API connection"
+              >
+                {checkingHealth ? (
+                  <ReloadIcon className="h-3 w-3 animate-spin" />
+                ) : (
+                  <ReloadIcon className="h-3 w-3" />
+                )}
+              </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
+          {apiHealthy === false && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertTitle className="flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-red-500"></div>
+                Segment API Connection Error
+              </AlertTitle>
+              <AlertDescription>
+                <p className="mb-2">
+                  The segment storage API is currently unavailable. You can still create and preview segments,
+                  but they will be stored locally and not synchronized with the server.
+                </p>
+                <p className="text-xs text-muted">
+                  Make sure the segment storage server is running at http://localhost:5000.
+                  You can start it by running the start_server.bat file in the crm-segment-storing directory.
+                </p>
+                <Button
+                  variant="link"
+                  className="p-0 h-auto text-xs mt-2"
+                  onClick={checkApiHealth}
+                >
+                  Try reconnecting
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-4">
               <TabsTrigger value="create">Create Segment</TabsTrigger>
@@ -814,8 +949,23 @@ export function SegmentBuilder() {
                       <CardContent>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                           <div className="bg-muted p-3 rounded-md">
-                            <h4 className="text-xs font-medium text-muted-foreground mb-1">Segment Size</h4>
-                            <p className="text-lg font-medium">{segment.customerCount?.toLocaleString() || 'N/A'} customers</p>
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <h4 className="text-xs font-medium text-muted-foreground mb-1">Segment Size</h4>
+                                <p className="text-lg font-medium">{segment.customerCount?.toLocaleString() || 'N/A'} customers</p>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  // Open a new tab to view analytics
+                                  const url = `/segment-analytics/${segment.id}`;
+                                  window.open(url, '_blank');
+                                }}
+                              >
+                                Analytics
+                              </Button>
+                            </div>
                             <div className="w-full bg-background rounded-full h-2 mt-2">
                               <div
                                 className="h-2 rounded-full bg-primary"
@@ -832,10 +982,40 @@ export function SegmentBuilder() {
                             <p className="text-sm">
                               {segment.updatedAt ? new Date(segment.updatedAt).toLocaleDateString() : 'N/A'}
                             </p>
-                            <div className="flex gap-2 mt-2">
-                              <Button variant="secondary" size="sm" className="w-full">
+                            <div className="flex flex-col gap-2 mt-2">
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                className="w-full"
+                                onClick={() => {
+                                  // Open a new tab to view customers
+                                  const url = `/segment-customers/${segment.id}`;
+                                  window.open(url, '_blank');
+                                }}
+                              >
                                 <Filter className="h-3 w-3 mr-1" />
                                 View Customers
+                              </Button>
+
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full"
+                                onClick={async () => {
+                                  try {
+                                    setLoading(true);
+                                    const exportData = await exportSegmentCustomers(segment.id, 'all');
+                                    alert(`Exported ${exportData.customer_count} customers for marketing`);
+                                  } catch (error) {
+                                    console.error('Error exporting customers:', error);
+                                    alert('Failed to export customers. Please try again.');
+                                  } finally {
+                                    setLoading(false);
+                                  }
+                                }}
+                              >
+                                <ArrowRight className="h-3 w-3 mr-1" />
+                                Export for Marketing
                               </Button>
                             </div>
                           </div>
