@@ -162,48 +162,54 @@ const CustomerDetailsDialog = ({
   };
 
   const getSegmentBadge = (segment?: string) => {
-    // Value-based segments
-    if (segment?.includes('Loyal')) {
+    if (!segment) return <Badge variant="outline">No Segment</Badge>;
+
+    // Handle different segment formats
+    const segmentLower = segment.toLowerCase();
+
+    // Value-based segments (RFM)
+    if (segmentLower.includes('loyal') || segmentLower.includes('champion')) {
       return <Badge className="bg-purple-600">Loyal Customer</Badge>;
-    } else if (segment?.includes('High Value')) {
+    } else if (segmentLower.includes('high_value') || segmentLower.includes('high value')) {
       return <Badge className="bg-purple-600">High Value</Badge>;
-    } else if (segment?.includes('Medium Value')) {
+    } else if (segmentLower.includes('medium_value') || segmentLower.includes('medium value')) {
       return <Badge className="bg-purple-400">Medium Value</Badge>;
-    } else if (segment?.includes('Low Value')) {
+    } else if (segmentLower.includes('low_value') || segmentLower.includes('low value')) {
       return <Badge className="bg-purple-200 text-purple-800">Low Value</Badge>;
-    } else if (segment?.includes('At Risk')) {
+    } else if (segmentLower.includes('at_risk') || segmentLower.includes('at risk')) {
       return <Badge variant="destructive">At Risk</Badge>;
-    } else if (segment?.includes('New')) {
+    } else if (segmentLower.includes('new')) {
       return <Badge className="bg-blue-500">New Customer</Badge>;
-    } else if (segment?.includes('Potential')) {
+    } else if (segmentLower.includes('potential')) {
       return <Badge className="bg-amber-500">Potential Loyalist</Badge>;
-    } else if (segment?.includes('Promising')) {
+    } else if (segmentLower.includes('promising')) {
       return <Badge className="bg-green-500">Promising</Badge>;
-    } else if (segment?.includes('Needs Attention')) {
+    } else if (segmentLower.includes('needs attention')) {
       return <Badge className="bg-orange-500">Needs Attention</Badge>;
-    } else if (segment?.includes('Dormant')) {
+    } else if (segmentLower.includes('dormant')) {
       return <Badge className="bg-red-300">Dormant</Badge>;
-    } else if (segment?.includes('Churned')) {
-      return <Badge className="bg-red-500">Churned</Badge>;
+    } else if (segmentLower.includes('lost') || segmentLower.includes('churned')) {
+      return <Badge className="bg-red-500">Lost Customer</Badge>;
     }
 
     // Demographic segments
-    else if (segment?.includes('Gender_') || segment?.includes('Age_')) {
+    else if (segment.includes('Gender_') || segment.includes('Age_') ||
+             segment.includes('gender_') || segment.includes('age_')) {
       return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
         {segment.replace(/_/g, ' ')}
       </Badge>;
     }
 
     // Preference segments
-    else if (segment?.includes('Preference')) {
+    else if (segment.includes('Preference') || segment.includes('preference')) {
       return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-        {segment}
+        {segment.replace(/_/g, ' ')}
       </Badge>;
     }
 
-    // Default case
+    // Return the segment as is for any other case
     else {
-      return <Badge variant="outline">Unclassified</Badge>;
+      return <Badge variant="outline">{segment}</Badge>;
     }
   };
 
@@ -1024,14 +1030,50 @@ const CustomerDetailsDialog = ({
                           <div className="text-xs text-muted-foreground">Phone</div>
                         </div>
                       </div>
-                      <div className="flex items-start gap-2">
-                        <MapPin className="h-4 w-4 mt-1 text-muted-foreground" />
-                        <div>
-                          <div>{customer.address || "No address provided"}</div>
-                          <div>{customer.city || "No city provided"}</div>
-                          <div className="text-xs text-muted-foreground">Address</div>
+                      {(customer.address || customer.city) && (
+                        <div className="flex items-start gap-2">
+                          <MapPin className="h-4 w-4 mt-1 text-muted-foreground" />
+                          <div>
+                            <div>
+                              {customer.address && <span>{customer.address}</span>}
+                              {customer.address && customer.city && <span>, </span>}
+                              {customer.city && <span>{customer.city}</span>}
+                              {!customer.address && !customer.city && <span>No address provided</span>}
+                            </div>
+                            <div className="text-xs text-muted-foreground">Address</div>
+                          </div>
                         </div>
-                      </div>
+                      )}
+                      {customer.marketing_status && (
+                        <div className="flex items-start gap-2">
+                          {customer.marketing_status === 'active' ? (
+                            <Bell className="h-4 w-4 mt-1 text-muted-foreground" />
+                          ) : (
+                            <BellOff className="h-4 w-4 mt-1 text-muted-foreground" />
+                          )}
+                          <div>
+                            <div className="flex items-center gap-2">
+                              {customer.marketing_status === 'active' ? (
+                                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                                  Marketing Active
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+                                  {customer.marketing_status === 'opted_out' ? 'Opted Out' :
+                                   customer.marketing_status === 'deleted' ? 'Deleted' : 'Inactive'}
+                                </Badge>
+                              )}
+                              {customer.opt_out_date && (
+                                <span className="text-xs text-muted-foreground">
+                                  since {formatDate(customer.opt_out_date)}
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs text-muted-foreground">Marketing Status</div>
+                          </div>
+                        </div>
+                      )}
+
                       {customer.gender && (
                         <div className="flex items-start gap-2">
                           <User className="h-4 w-4 mt-1 text-muted-foreground" />
@@ -1081,8 +1123,30 @@ const CustomerDetailsDialog = ({
                       <div className="flex items-start gap-2">
                         <CalendarDays className="h-4 w-4 mt-1 text-muted-foreground" />
                         <div>
-                          <div>{formatDate(customer.lastPurchase)}</div>
+                          <div>{customer.lastPurchase ? formatDate(customer.lastPurchase) : "No purchases yet"}</div>
                           <div className="text-xs text-muted-foreground">Last Purchase</div>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <Tag className="h-4 w-4 mt-1 text-muted-foreground" />
+                        <div>
+                          <div>{getSegmentBadge(customer.segment)}</div>
+                          <div className="text-xs text-muted-foreground">Customer Segment</div>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <Award className="h-4 w-4 mt-1 text-muted-foreground" />
+                        <div>
+                          <div>
+                            {customer.value_segment ? (
+                              <Badge className="bg-primary/10 text-primary hover:bg-primary/20">
+                                {customer.value_segment}
+                              </Badge>
+                            ) : (
+                              "Not classified"
+                            )}
+                          </div>
+                          <div className="text-xs text-muted-foreground">Value Segment</div>
                         </div>
                       </div>
                       {customer.transactions && customer.transactions.length > 0 && (
@@ -1331,126 +1395,84 @@ const CustomerDetailsDialog = ({
                     <CardContent>
                       {customer.rfm_data ? (
                         <div className="space-y-4">
-                          <div className="p-3 border rounded-md bg-slate-50">
-                            <p className="text-sm mb-2">
-                              <span className="font-medium">RFM Analysis</span> evaluates customers based on three key metrics:
-                            </p>
-                            <ul className="text-xs text-muted-foreground list-disc pl-5 space-y-1">
-                              <li><span className="font-medium text-blue-600">Recency</span> - How recently the customer made a purchase</li>
-                              <li><span className="font-medium text-green-600">Frequency</span> - How often the customer makes purchases</li>
-                              <li><span className="font-medium text-purple-600">Monetary</span> - How much the customer spends</li>
-                            </ul>
-                            <p className="text-xs text-muted-foreground mt-2">
-                              Each metric is scored from 1-5, with 5 being the best. The combined RFM score determines the customer's value segment.
-                            </p>
-                          </div>
+                          <details className="text-xs text-muted-foreground mb-2">
+                            <summary className="text-sm font-medium cursor-pointer hover:text-primary">
+                              What is RFM Analysis?
+                            </summary>
+                            <div className="mt-2 p-2 border rounded-md bg-slate-50">
+                              <p className="mb-1">
+                                <span className="font-medium">RFM</span> = <span className="text-blue-600">Recency</span>, <span className="text-green-600">Frequency</span>, <span className="text-purple-600">Monetary</span>
+                              </p>
+                              <p>Scores from 1-5 (5 = best) determine customer value segment.</p>
+                            </div>
+                          </details>
 
                           <div className="grid grid-cols-3 gap-2">
-                            <div className="flex flex-col items-center p-3 border rounded-md hover:bg-blue-50 transition-colors group">
-                              <div className="flex items-center justify-between w-full mb-1">
+                            <div className="flex flex-col p-2 border rounded-md bg-blue-50/30">
+                              <div className="flex justify-between items-center">
                                 <span className="text-xs font-medium text-blue-600">Recency</span>
-                                <span className="text-xs text-muted-foreground">
-                                  {getRFMScoreDescription('r', customer.rfm_data.r_score)}
-                                </span>
+                                <span className="text-2xl font-bold text-blue-600">{customer.rfm_data.r_score || 'N/A'}</span>
                               </div>
-                              <span className="text-2xl font-bold text-blue-600">{customer.rfm_data.r_score || 'N/A'}</span>
-                              <div className="flex items-center gap-1 mt-1">
-                                <CalendarDays className="h-3 w-3 text-muted-foreground" />
-                                <span className="text-xs text-muted-foreground">
-                                  {customer.rfm_data.recency !== undefined ?
-                                    `${customer.rfm_data.recency} days since last purchase` : 'N/A'}
-                                </span>
+                              <div className="text-xs text-muted-foreground mt-1">
+                                {customer.rfm_data.recency !== undefined ?
+                                  `${customer.rfm_data.recency} days ago` : 'N/A'}
                               </div>
-                              <div className="hidden group-hover:block text-xs text-blue-600 mt-2 text-center">
-                                {getRecencyInsight(customer.rfm_data.r_score)}
+                              <div className="text-xs mt-1 text-blue-600 italic">
+                                {getRFMScoreDescription('r', customer.rfm_data.r_score)}
                               </div>
                             </div>
 
-                            <div className="flex flex-col items-center p-3 border rounded-md hover:bg-green-50 transition-colors group">
-                              <div className="flex items-center justify-between w-full mb-1">
+                            <div className="flex flex-col p-2 border rounded-md bg-green-50/30">
+                              <div className="flex justify-between items-center">
                                 <span className="text-xs font-medium text-green-600">Frequency</span>
-                                <span className="text-xs text-muted-foreground">
-                                  {getRFMScoreDescription('f', customer.rfm_data.f_score)}
-                                </span>
+                                <span className="text-2xl font-bold text-green-600">{customer.rfm_data.f_score || 'N/A'}</span>
                               </div>
-                              <span className="text-2xl font-bold text-green-600">{customer.rfm_data.f_score || 'N/A'}</span>
-                              <div className="flex items-center gap-1 mt-1">
-                                <ShoppingBag className="h-3 w-3 text-muted-foreground" />
-                                <span className="text-xs text-muted-foreground">
-                                  {customer.rfm_data.frequency !== undefined ?
-                                    `${customer.rfm_data.frequency} orders total` : 'N/A'}
-                                </span>
+                              <div className="text-xs text-muted-foreground mt-1">
+                                {customer.rfm_data.frequency !== undefined ?
+                                  `${customer.rfm_data.frequency} orders` : 'N/A'}
                               </div>
-                              <div className="hidden group-hover:block text-xs text-green-600 mt-2 text-center">
-                                {getFrequencyInsight(customer.rfm_data.f_score)}
+                              <div className="text-xs mt-1 text-green-600 italic">
+                                {getRFMScoreDescription('f', customer.rfm_data.f_score)}
                               </div>
                             </div>
 
-                            <div className="flex flex-col items-center p-3 border rounded-md hover:bg-purple-50 transition-colors group">
-                              <div className="flex items-center justify-between w-full mb-1">
+                            <div className="flex flex-col p-2 border rounded-md bg-purple-50/30">
+                              <div className="flex justify-between items-center">
                                 <span className="text-xs font-medium text-purple-600">Monetary</span>
-                                <span className="text-xs text-muted-foreground">
-                                  {getRFMScoreDescription('m', customer.rfm_data.m_score)}
-                                </span>
+                                <span className="text-2xl font-bold text-purple-600">{customer.rfm_data.m_score || 'N/A'}</span>
                               </div>
-                              <span className="text-2xl font-bold text-purple-600">{customer.rfm_data.m_score || 'N/A'}</span>
-                              <div className="flex items-center gap-1 mt-1">
-                                <CreditCard className="h-3 w-3 text-muted-foreground" />
-                                <span className="text-xs text-muted-foreground">
-                                  {customer.rfm_data.monetary !== undefined ?
-                                    `Rs. ${Number(customer.rfm_data.monetary).toLocaleString('en-LK')} spent` : 'N/A'}
-                                </span>
+                              <div className="text-xs text-muted-foreground mt-1">
+                                {customer.rfm_data.monetary !== undefined ?
+                                  `Rs. ${Number(customer.rfm_data.monetary).toLocaleString('en-LK')}` : 'N/A'}
                               </div>
-                              <div className="hidden group-hover:block text-xs text-purple-600 mt-2 text-center">
-                                {getMonetaryInsight(customer.rfm_data.m_score)}
+                              <div className="text-xs mt-1 text-purple-600 italic">
+                                {getRFMScoreDescription('m', customer.rfm_data.m_score)}
                               </div>
                             </div>
                           </div>
 
-                          <div className="flex flex-col p-4 border rounded-md bg-gradient-to-r from-slate-50 to-primary/5">
-                            <div className="flex justify-between items-center mb-3">
-                              <span className="text-sm font-medium">Combined RFM Score</span>
-                              <Badge className="text-lg px-3 py-1 bg-primary text-primary-foreground">
-                                {customer.rfm_data.rfm_score || 'N/A'}
+                          <div className="flex flex-col p-3 border rounded-md bg-gradient-to-r from-slate-50 to-primary/5">
+                            <div className="flex items-center gap-3">
+                              <Badge className="px-3 py-1 bg-primary text-primary-foreground">
+                                RFM: {customer.rfm_data.rfm_score || 'N/A'}
                               </Badge>
-                            </div>
-
-                            <div className="flex items-center gap-2 mb-3">
-                              <div className="h-2 w-2 rounded-full bg-primary"></div>
-                              <span className="text-base font-semibold">
+                              <span className="text-sm font-semibold">
                                 {customer.value_segment || 'Unclassified'}
                               </span>
-                            </div>
-
-                            <p className="text-sm mb-3">
-                              {getValueSegmentDescription(customer.value_segment)}
-                            </p>
-
-                            <div className="flex items-center gap-1 text-xs text-muted-foreground mt-2">
-                              <Clock className="h-3 w-3" />
-                              <span>
-                                Last calculated: {customer.rfm_data.last_calculated ?
-                                  new Date(customer.rfm_data.last_calculated).toLocaleDateString('en-LK', {
-                                    year: 'numeric',
-                                    month: 'short',
-                                    day: 'numeric'
-                                  }) : 'N/A'}
+                              <span className="text-xs text-muted-foreground ml-auto">
+                                {customer.rfm_data.last_calculated ?
+                                  `Updated: ${new Date(customer.rfm_data.last_calculated).toLocaleDateString('en-LK')}` : ''}
                               </span>
                             </div>
-                          </div>
 
-                          <div className="p-3 border rounded-md bg-primary/5">
-                            <h4 className="text-sm font-medium mb-2">Recommended Actions</h4>
-                            <ul className="text-sm space-y-2">
-                              {getRecommendedActions(customer.value_segment).map((action, index) => (
-                                <li key={index} className="flex items-start gap-2">
-                                  <div className="h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center text-primary mt-0.5">
-                                    {index + 1}
-                                  </div>
-                                  <span>{action}</span>
-                                </li>
-                              ))}
-                            </ul>
+                            <details className="mt-2">
+                              <summary className="text-xs font-medium cursor-pointer hover:text-primary">
+                                Segment Description
+                              </summary>
+                              <div className="mt-2 text-xs">
+                                <p>{getValueSegmentDescription(customer.value_segment)}</p>
+                              </div>
+                            </details>
                           </div>
                         </div>
                       ) : (
@@ -1478,23 +1500,20 @@ const CustomerDetailsDialog = ({
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-4">
-                        <div className="p-3 border rounded-md bg-slate-50">
-                          <p className="text-sm mb-2">
-                            <span className="font-medium">Demographic Segmentation</span> groups customers based on:
-                          </p>
-                          <ul className="text-xs text-muted-foreground list-disc pl-5 space-y-1">
-                            <li><span className="font-medium text-blue-600">Gender</span> - Male, Female, or Other</li>
-                            <li><span className="font-medium text-amber-600">Age</span> - Age groups like 18-24, 25-34, etc.</li>
-                            <li><span className="font-medium text-green-600">Combined</span> - Intersection of gender and age</li>
-                          </ul>
-                          <p className="text-xs text-muted-foreground mt-2">
-                            These segments help tailor marketing messages and product offerings to specific demographic groups.
-                          </p>
-                        </div>
+                        <details className="text-xs text-muted-foreground mb-2">
+                          <summary className="text-sm font-medium cursor-pointer hover:text-primary">
+                            About Demographic Segmentation
+                          </summary>
+                          <div className="mt-2 p-2 border rounded-md bg-slate-50">
+                            <p className="mb-1">
+                              Groups by <span className="text-blue-600">Gender</span>, <span className="text-amber-600">Age</span>, and their combinations to tailor marketing.
+                            </p>
+                          </div>
+                        </details>
 
                         <div className="grid grid-cols-2 gap-2">
-                          <div className="flex flex-col p-3 border rounded-md bg-gradient-to-br from-blue-50 to-transparent group hover:shadow-sm transition-all">
-                            <div className="flex justify-between items-center mb-1">
+                          <div className="flex flex-col p-2 border rounded-md bg-blue-50/30">
+                            <div className="flex justify-between items-center">
                               <span className="text-xs font-medium text-blue-600">Gender</span>
                               {customer.gender && (
                                 <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
@@ -1503,27 +1522,17 @@ const CustomerDetailsDialog = ({
                               )}
                             </div>
                             <div className="flex items-center gap-2 mt-1">
-                              <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
-                                {customer.gender === 'male' ?
-                                  <User className="h-5 w-5" /> :
-                                  customer.gender === 'female' ?
-                                  <User className="h-5 w-5" /> :
-                                  <User className="h-5 w-5" />}
-                              </div>
-                              <span className="text-lg font-medium capitalize">{customer.gender || 'Unknown'}</span>
+                              <span className="text-sm font-medium capitalize">{customer.gender || 'Unknown'}</span>
                             </div>
                             {customer.gender_segment && (
-                              <Badge className="mt-2 w-fit bg-blue-100 text-blue-800 hover:bg-blue-100">
-                                {customer.gender_segment.replace('Gender_', '')}
-                              </Badge>
+                              <div className="text-xs text-muted-foreground mt-1">
+                                Segment: {customer.gender_segment.replace('Gender_', '')}
+                              </div>
                             )}
-                            <div className="text-xs text-muted-foreground mt-2">
-                              {getGenderInsight(customer.gender)}
-                            </div>
                           </div>
 
-                          <div className="flex flex-col p-3 border rounded-md bg-gradient-to-br from-amber-50 to-transparent group hover:shadow-sm transition-all">
-                            <div className="flex justify-between items-center mb-1">
+                          <div className="flex flex-col p-2 border rounded-md bg-amber-50/30">
+                            <div className="flex justify-between items-center">
                               <span className="text-xs font-medium text-amber-600">Age</span>
                               {customer.age && (
                                 <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
@@ -1532,51 +1541,36 @@ const CustomerDetailsDialog = ({
                               )}
                             </div>
                             <div className="flex items-center gap-2 mt-1">
-                              <div className="h-8 w-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
-                                {getAgeIcon(customer.age)}
-                              </div>
-                              <span className="text-lg font-medium">
+                              <span className="text-sm font-medium">
                                 {customer.age ? `${customer.age} years` : 'Unknown'}
                               </span>
                             </div>
                             {customer.demographic_segment && customer.demographic_segment.includes('Age_') && (
-                              <Badge className="mt-2 w-fit bg-amber-100 text-amber-800 hover:bg-amber-100">
-                                {customer.demographic_segment.split('Age_')[1]}
-                              </Badge>
+                              <div className="text-xs text-muted-foreground mt-1">
+                                Segment: {customer.demographic_segment.split('Age_')[1]}
+                              </div>
                             )}
-                            <div className="text-xs text-muted-foreground mt-2">
-                              {getAgeInsight(customer.age)}
-                            </div>
                           </div>
                         </div>
 
-                        <div className="flex flex-col p-4 border rounded-md bg-gradient-to-r from-slate-50 to-green-50">
-                          <div className="flex justify-between items-center mb-2">
-                            <span className="text-sm font-medium">Combined Demographic Segment</span>
-                            <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+                        <div className="flex flex-col p-3 border rounded-md bg-gradient-to-r from-slate-50 to-green-50/30">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium">Combined Segment:</span>
+                            <Badge className="bg-green-100 text-green-800">
                               {customer.demographic_segment ?
                                 customer.demographic_segment.replace(/_/g, ' ') :
                                 'Unclassified'}
                             </Badge>
                           </div>
 
-                          <p className="text-sm mb-3">
-                            {getDemographicSegmentDescription(customer.demographic_segment)}
-                          </p>
-
-                          <div className="p-3 border rounded-md bg-white">
-                            <h4 className="text-sm font-medium mb-2">Marketing Recommendations</h4>
-                            <ul className="text-sm space-y-2">
-                              {getDemographicRecommendations(customer.demographic_segment, customer.gender, customer.age).map((rec, index) => (
-                                <li key={index} className="flex items-start gap-2">
-                                  <div className="h-5 w-5 rounded-full bg-green-100 flex items-center justify-center text-green-600 mt-0.5">
-                                    {index + 1}
-                                  </div>
-                                  <span>{rec}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
+                          <details className="mt-2">
+                            <summary className="text-xs font-medium cursor-pointer hover:text-primary">
+                              Segment Details
+                            </summary>
+                            <div className="mt-2 text-xs">
+                              <p>{getDemographicSegmentDescription(customer.demographic_segment)}</p>
+                            </div>
+                          </details>
                         </div>
                       </div>
                     </CardContent>
@@ -1596,19 +1590,16 @@ const CustomerDetailsDialog = ({
                     <CardContent>
                       {customer.preferences || customer.favorite_category || customer.preferred_material ? (
                         <div className="space-y-4">
-                          <div className="p-3 border rounded-md bg-slate-50">
-                            <p className="text-sm mb-2">
-                              <span className="font-medium">Preference Segmentation</span> groups customers based on their:
-                            </p>
-                            <ul className="text-xs text-muted-foreground list-disc pl-5 space-y-1">
-                              <li><span className="font-medium text-rose-600">Product Preferences</span> - Categories they frequently purchase</li>
-                              <li><span className="font-medium text-purple-600">Material Preferences</span> - Materials they prefer in products</li>
-                              <li><span className="font-medium text-green-600">Shopping Behavior</span> - How they browse and purchase</li>
-                            </ul>
-                            <p className="text-xs text-muted-foreground mt-2">
-                              These segments help create personalized product recommendations and targeted marketing campaigns.
-                            </p>
-                          </div>
+                          <details className="text-xs text-muted-foreground mb-2">
+                            <summary className="text-sm font-medium cursor-pointer hover:text-primary">
+                              About Preference Segmentation
+                            </summary>
+                            <div className="mt-2 p-2 border rounded-md bg-slate-50">
+                              <p className="mb-1">
+                                Groups by <span className="text-rose-600">Product</span>, <span className="text-purple-600">Material</span>, and <span className="text-green-600">Shopping Behavior</span> preferences for personalized marketing.
+                              </p>
+                            </div>
+                          </details>
 
                           {/* Favorite Categories */}
                           <div className="flex flex-col p-3 border rounded-md bg-gradient-to-br from-rose-50 to-transparent group hover:shadow-sm transition-all">
@@ -1700,27 +1691,9 @@ const CustomerDetailsDialog = ({
                               </Badge>
                             </div>
 
-                            <p className="text-sm mb-3">
+                            <p className="text-sm">
                               {getPreferenceSegmentDescription(customer.preference_segment)}
                             </p>
-
-                            <div className="p-3 border rounded-md bg-white">
-                              <h4 className="text-sm font-medium mb-2">Product Recommendations</h4>
-                              <ul className="text-sm space-y-2">
-                                {getPreferenceRecommendations(
-                                  customer.preference_segment,
-                                  customer.preferences?.favorite_categories || (customer.favorite_category ? [customer.favorite_category] : []),
-                                  customer.preferences?.preferred_materials || (customer.preferred_material ? [customer.preferred_material] : [])
-                                ).map((rec, index) => (
-                                  <li key={index} className="flex items-start gap-2">
-                                    <div className="h-5 w-5 rounded-full bg-green-100 flex items-center justify-center text-green-600 mt-0.5">
-                                      {index + 1}
-                                    </div>
-                                    <span>{rec}</span>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
                           </div>
                         </div>
                       ) : (
@@ -1730,15 +1703,7 @@ const CustomerDetailsDialog = ({
                           <p className="text-muted-foreground max-w-md">
                             Preference data is not available for this customer.
                           </p>
-                          <div className="mt-4 p-3 border rounded-md bg-slate-50 text-left max-w-md">
-                            <h4 className="text-sm font-medium mb-2">How to Collect Preference Data</h4>
-                            <ul className="text-xs text-muted-foreground list-disc pl-5 space-y-1">
-                              <li>Send a preference survey to this customer</li>
-                              <li>Analyze past purchase patterns</li>
-                              <li>Track product browsing behavior</li>
-                              <li>Ask for feedback after purchases</li>
-                            </ul>
-                          </div>
+
                         </div>
                       )}
                     </CardContent>
@@ -1757,63 +1722,55 @@ const CustomerDetailsDialog = ({
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-4">
-                        <div className="p-3 border rounded-md bg-slate-50">
-                          <p className="text-sm mb-2">
-                            <span className="font-medium">Marketing Status</span> indicates a customer's:
-                          </p>
-                          <ul className="text-xs text-muted-foreground list-disc pl-5 space-y-1">
-                            <li><span className="font-medium text-green-600">Consent Status</span> - Legal permission to send marketing</li>
-                            <li><span className="font-medium text-blue-600">Communication Preferences</span> - Channels they prefer</li>
-                            <li><span className="font-medium text-purple-600">Engagement Level</span> - How they interact with marketing</li>
-                          </ul>
-                          <p className="text-xs text-muted-foreground mt-2">
-                            This information ensures compliance with privacy regulations and optimizes marketing effectiveness.
-                          </p>
-                        </div>
-
-                        <div className="flex flex-col p-4 border rounded-md bg-gradient-to-br from-green-50 to-transparent">
-                          <div className="flex justify-between items-center mb-2">
-                            <span className="text-sm font-medium text-green-700">Consent Status</span>
-                            <div className="flex items-center gap-2">
-                              {customer.consentGiven ? (
-                                <Badge variant="outline" className="bg-green-100 text-green-700 border-green-200">
-                                  Consented
-                                </Badge>
-                              ) : (
-                                <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-200">
-                                  No Consent
-                                </Badge>
-                              )}
-                            </div>
+                        <details className="text-xs text-muted-foreground mb-2">
+                          <summary className="text-sm font-medium cursor-pointer hover:text-primary">
+                            About Marketing Status
+                          </summary>
+                          <div className="mt-2 p-2 border rounded-md bg-slate-50">
+                            <p className="mb-1">
+                              Tracks <span className="text-green-600">Consent</span>, <span className="text-blue-600">Communication Preferences</span>, and <span className="text-purple-600">Engagement</span> for compliance and effectiveness.
+                            </p>
                           </div>
+                        </details>
 
-                          <div className="flex items-center gap-2 mb-2">
-                            <Calendar className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm">
-                              {customer.consentDate ?
-                                `${customer.consentGiven ? 'Consent given' : 'Last updated'} on ${formatDate(customer.consentDate)}` :
-                                'No consent date recorded'}
+                        <div className="flex flex-col p-3 border rounded-md bg-green-50/30">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium text-green-700">Consent:</span>
+                            {customer.consentGiven ? (
+                              <Badge variant="outline" className="bg-green-100 text-green-700 border-green-200">
+                                Consented
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-200">
+                                No Consent
+                              </Badge>
+                            )}
+                            <span className="text-xs text-muted-foreground ml-auto">
+                              {customer.consentDate ? formatDate(customer.consentDate) : 'No date'}
                             </span>
                           </div>
 
-                          <p className="text-sm mb-2">
-                            {customer.consentGiven ?
-                              "This customer has provided explicit consent to receive marketing communications." :
-                              "This customer has not provided consent for marketing communications."}
-                          </p>
-
-                          <div className="p-2 bg-white rounded-md border border-dashed border-green-200 text-xs text-muted-foreground">
-                            <div className="flex items-center gap-1 mb-1">
-                              <AlertCircle className="h-3 w-3" />
-                              <span className="font-medium">Legal Note:</span>
+                          <details className="mt-2">
+                            <summary className="text-xs font-medium cursor-pointer hover:text-primary">
+                              Consent Details
+                            </summary>
+                            <div className="mt-2 p-2 border rounded-md bg-white text-xs">
+                              <p className="mb-2">
+                                {customer.consentGiven ?
+                                  "This customer has provided explicit consent to receive marketing communications." :
+                                  "This customer has not provided consent for marketing communications."}
+                              </p>
+                              <div className="flex items-center gap-1 text-muted-foreground">
+                                <AlertCircle className="h-3 w-3" />
+                                <span>Always comply with privacy laws and regulations.</span>
+                              </div>
                             </div>
-                            Always ensure marketing communications comply with applicable privacy laws and regulations.
-                          </div>
+                          </details>
                         </div>
 
-                        <div className="flex flex-col p-4 border rounded-md bg-gradient-to-br from-blue-50 to-transparent">
-                          <div className="flex justify-between items-center mb-2">
-                            <span className="text-sm font-medium text-blue-700">Marketing Status</span>
+                        <div className="flex flex-col p-3 border rounded-md bg-blue-50/30">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium text-blue-700">Status:</span>
                             <Badge
                               variant="outline"
                               className={customer.marketing_status === "active" ?
@@ -1825,101 +1782,55 @@ const CustomerDetailsDialog = ({
                             >
                               {customer.marketing_status === "active" ? "Active" :
                                customer.marketing_status === "inactive" ? "Inactive" :
+                               customer.marketing_status === "opted_out" ? "Opted Out" :
                                "Unknown"}
                             </Badge>
-                          </div>
 
-                          <div className="flex items-center gap-2 mb-3">
-                            <div className="h-2 w-2 rounded-full bg-blue-500"></div>
-                            <span className="text-sm">
-                              {customer.marketing_status === "active" ?
-                                "Currently receiving marketing communications" :
-                                customer.marketing_status === "inactive" ?
-                                "Not receiving marketing communications" :
-                                "Marketing status not set"}
-                            </span>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-2 mb-3">
-                            {customer.communication_preferences ? (
-                              <>
-                                <div className="p-2 border rounded-md bg-white">
-                                  <span className="text-xs text-muted-foreground">Email</span>
-                                  <div className="flex items-center gap-1 mt-1">
-                                    <div className={`h-2 w-2 rounded-full ${customer.communication_preferences.email ? 'bg-green-500' : 'bg-red-300'}`}></div>
-                                    <span className="text-sm">{customer.communication_preferences.email ? 'Subscribed' : 'Unsubscribed'}</span>
-                                  </div>
-                                </div>
-                                <div className="p-2 border rounded-md bg-white">
-                                  <span className="text-xs text-muted-foreground">SMS</span>
-                                  <div className="flex items-center gap-1 mt-1">
-                                    <div className={`h-2 w-2 rounded-full ${customer.communication_preferences.sms ? 'bg-green-500' : 'bg-red-300'}`}></div>
-                                    <span className="text-sm">{customer.communication_preferences.sms ? 'Subscribed' : 'Unsubscribed'}</span>
-                                  </div>
-                                </div>
-                              </>
-                            ) : (
-                              <div className="col-span-2 p-2 border rounded-md bg-white">
-                                <span className="text-xs text-muted-foreground">Communication Preferences</span>
-                                <div className="flex items-center gap-1 mt-1">
-                                  <AlertCircle className="h-4 w-4 text-amber-500" />
-                                  <span className="text-sm">No specific preferences recorded</span>
-                                </div>
-                              </div>
+                            {customer.opt_out_date && (
+                              <span className="text-xs text-muted-foreground ml-auto">
+                                {customer.marketing_status === "opted_out" ? `Opted out: ${formatDate(customer.opt_out_date)}` : ''}
+                              </span>
                             )}
                           </div>
 
-                          <div className="p-3 border rounded-md bg-white">
-                            <h4 className="text-sm font-medium mb-2">Recommended Actions</h4>
-                            <ul className="text-sm space-y-2">
-                              {getMarketingRecommendations(customer.marketing_status, customer.consentGiven).map((rec, index) => (
-                                <li key={index} className="flex items-start gap-2">
-                                  <div className="h-5 w-5 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 mt-0.5">
-                                    {index + 1}
-                                  </div>
-                                  <span>{rec}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
+                          {customer.communication_preferences && (
+                            <div className="flex gap-2 mt-2">
+                              <div className="flex items-center gap-1">
+                                <Mail className="h-3 w-3 text-muted-foreground" />
+                                <span className="text-xs">
+                                  {customer.communication_preferences.email ? 'Email ✓' : 'Email ✗'}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <MessageSquare className="h-3 w-3 text-muted-foreground" />
+                                <span className="text-xs">
+                                  {customer.communication_preferences.sms ? 'SMS ✓' : 'SMS ✗'}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+
+
                         </div>
 
                         {customer.marketing_metrics && (
-                          <div className="flex flex-col p-4 border rounded-md bg-gradient-to-br from-purple-50 to-transparent">
-                            <div className="flex justify-between items-center mb-2">
-                              <span className="text-sm font-medium text-purple-700">Engagement Metrics</span>
+                          <div className="flex flex-col p-3 border rounded-md bg-purple-50/30">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-medium text-purple-700">Engagement:</span>
                               <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-200">
                                 {getEngagementLevel(customer.marketing_metrics)}
                               </Badge>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-2 mb-3">
-                              <div className="p-2 border rounded-md bg-white">
-                                <span className="text-xs text-muted-foreground">Email Open Rate</span>
-                                <div className="flex items-center justify-between mt-1">
-                                  <span className="text-sm font-medium">{customer.marketing_metrics.email_open_rate || 'N/A'}</span>
-                                  {customer.marketing_metrics.email_open_rate && (
-                                    <Badge variant="outline" className="text-xs">
-                                      {getMetricRating(customer.marketing_metrics.email_open_rate, 'open_rate')}
-                                    </Badge>
-                                  )}
-                                </div>
+                            <div className="flex gap-4 mt-2 text-xs">
+                              <div className="flex items-center gap-1">
+                                <Mail className="h-3 w-3 text-muted-foreground" />
+                                <span>Opens: {customer.marketing_metrics.email_open_rate || 'N/A'}</span>
                               </div>
-                              <div className="p-2 border rounded-md bg-white">
-                                <span className="text-xs text-muted-foreground">Click Rate</span>
-                                <div className="flex items-center justify-between mt-1">
-                                  <span className="text-sm font-medium">{customer.marketing_metrics.click_rate || 'N/A'}</span>
-                                  {customer.marketing_metrics.click_rate && (
-                                    <Badge variant="outline" className="text-xs">
-                                      {getMetricRating(customer.marketing_metrics.click_rate, 'click_rate')}
-                                    </Badge>
-                                  )}
-                                </div>
+                              <div className="flex items-center gap-1">
+                                <MousePointer className="h-3 w-3 text-muted-foreground" />
+                                <span>Clicks: {customer.marketing_metrics.click_rate || 'N/A'}</span>
                               </div>
-                            </div>
-
-                            <div className="text-sm mb-2">
-                              {getEngagementInsight(customer.marketing_metrics)}
                             </div>
                           </div>
                         )}
@@ -1947,28 +1858,60 @@ const CustomerDetailsDialog = ({
                   </CardHeader>
                   <CardContent>
                     {customer.transactions && customer.transactions.length > 0 ? (
-                      <ScrollArea className="h-[300px] rounded-md border">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Transaction ID</TableHead>
-                              <TableHead>Date</TableHead>
-                              <TableHead>Amount</TableHead>
-                              <TableHead>Payment Method</TableHead>
-                              <TableHead>Location</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {customer.transactions.map((transaction: any, index: number) => (
-                              <TableRow key={transaction.transaction_id || index}>
-                                <TableCell className="font-medium">
-                                  {transaction.transaction_id || `TX-${index + 1}`}
-                                </TableCell>
-                                <TableCell>
-                                  {transaction.purchase_datetime ?
-                                    new Date(transaction.purchase_datetime).toLocaleDateString('en-LK') :
-                                    'N/A'}
-                                </TableCell>
+                      <>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                          <div className="flex flex-col gap-1 p-4 border rounded-md">
+                            <span className="text-sm text-muted-foreground">Total Spent</span>
+                            <span className="text-2xl font-bold">
+                              Rs. {customer.totalSpent.toLocaleString('en-LK')}
+                            </span>
+                          </div>
+                          <div className="flex flex-col gap-1 p-4 border rounded-md">
+                            <span className="text-sm text-muted-foreground">Purchase Count</span>
+                            <span className="text-2xl font-bold">
+                              {customer.purchaseCount} orders
+                            </span>
+                          </div>
+                          <div className="flex flex-col gap-1 p-4 border rounded-md">
+                            <span className="text-sm text-muted-foreground">Average Order Value</span>
+                            <span className="text-2xl font-bold">
+                              Rs. {customer.purchaseCount && customer.totalSpent ?
+                                Math.round(customer.totalSpent / customer.purchaseCount).toLocaleString('en-LK') :
+                                '0'}
+                            </span>
+                          </div>
+                          <div className="flex flex-col gap-1 p-4 border rounded-md">
+                            <span className="text-sm text-muted-foreground">Last Purchase</span>
+                            <span className="text-2xl font-bold">
+                              {customer.lastPurchase ?
+                                new Date(customer.lastPurchase).toLocaleDateString('en-LK') :
+                                'N/A'}
+                            </span>
+                          </div>
+                        </div>
+
+                        <ScrollArea className="h-[300px] rounded-md border">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Transaction ID</TableHead>
+                                <TableHead>Date</TableHead>
+                                <TableHead>Amount</TableHead>
+                                <TableHead>Payment Method</TableHead>
+                                <TableHead>Location</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {customer.transactions.map((transaction: any, index: number) => (
+                                <TableRow key={transaction.transaction_id || index}>
+                                  <TableCell className="font-medium">
+                                    {transaction.transaction_id || `TX-${index + 1}`}
+                                  </TableCell>
+                                  <TableCell>
+                                    {transaction.purchase_datetime ?
+                                      new Date(transaction.purchase_datetime).toLocaleDateString('en-LK') :
+                                      'N/A'}
+                                  </TableCell>
                                 <TableCell>
                                   Rs. {parseFloat(transaction.total_amount_lkr || 0).toLocaleString('en-LK')}
                                 </TableCell>
@@ -1983,12 +1926,13 @@ const CustomerDetailsDialog = ({
                           </TableBody>
                         </Table>
                       </ScrollArea>
+                      </>
                     ) : (
                       <div className="flex flex-col items-center justify-center py-8 text-center">
-                        <ShoppingCart className="h-12 w-12 text-muted-foreground mb-4 opacity-20" />
+                        <ShoppingBag className="h-12 w-12 text-muted-foreground mb-4 opacity-20" />
                         <h3 className="text-lg font-semibold">No Purchase History</h3>
                         <p className="text-muted-foreground max-w-md">
-                          This customer has not made any purchases yet or purchase data is not available.
+                          This customer hasn't made any purchases yet, or purchase data is not available.
                         </p>
                       </div>
                     )}

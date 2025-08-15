@@ -3,10 +3,10 @@ import { User, Customer, DashboardMetric, SegmentData, ChartData, CampaignData }
 
 export const currentUser: User = {
   id: "u1",
-  name: "Asela Perera",
-  email: "asela@lankasmart.lk",
-  role: "admin",
-  avatar: "https://randomuser.me/api/portraits/men/32.jpg"
+  name: "Eegent Fashion",
+  email: "info@eegentfashion.com",
+  role: "",
+  avatar: ""
 };
 
 export const dashboardMetrics: DashboardMetric[] = [

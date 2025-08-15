@@ -17,7 +17,7 @@ export interface Customer {
   phone: string;
   address?: string;
   city?: string;
-  segment?: 'high_value' | 'medium_value' | 'low_value' | 'at_risk';
+  segment?: string;
   lastPurchase?: string;
   totalSpent: number;
   purchaseCount: number;
@@ -28,6 +28,33 @@ export interface Customer {
   marketing_status?: 'active' | 'opted_out' | 'deleted' | 'inactive';
   opt_out_date?: string;
   opt_out_reason?: string;
+
+  // Additional fields from backend
+  gender?: string;
+  age?: number;
+  value_segment?: string;
+  rfm_data?: {
+    r_score?: number;
+    f_score?: number;
+    m_score?: number;
+    rfm_score?: number;
+    recency?: number;
+    frequency?: number;
+    monetary?: number;
+    last_calculated?: string;
+  };
+  transactions?: Array<{
+    id?: string;
+    purchase_datetime?: string;
+    total_amount_lkr?: number;
+    payment_method?: string;
+    store_location?: string;
+    items?: Array<any>;
+  }>;
+  preferences?: Record<string, any>;
+  survey_responses?: Array<any>;
+  gender_segment?: string;
+  age_segment?: string;
 }
 
 export interface DashboardMetric {

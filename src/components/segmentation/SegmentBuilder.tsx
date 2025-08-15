@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
-import { Plus, X, Save, Filter, ArrowRight, Check } from 'lucide-react'
+import { Plus, X, Save, Filter, ArrowRight, Check, Download } from 'lucide-react'
 import { InfoCircledIcon, ReloadIcon } from '@radix-ui/react-icons'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Progress } from '@/components/ui/progress'
@@ -120,10 +120,10 @@ export function SegmentBuilder() {
         ...currentSegment.rules,
         {
           id: `rule-${Date.now()}`,
-          type: 'purchase',
-          operator: 'greater_than',
+          type: 'gender',
+          operator: 'is',
           value: '',
-          valueType: 'number'
+          valueType: 'string'
         }
       ]
     })
@@ -164,6 +164,12 @@ export function SegmentBuilder() {
           if (rule.type === 'gender' && typeof rule.value === 'string') {
             // Gender values should be capitalized
             formattedRule.value = rule.value.charAt(0).toUpperCase() + rule.value.slice(1)
+          }
+
+          // Ensure age values are properly formatted
+          if (rule.type === 'age' && typeof rule.value === 'string') {
+            // Make sure the operator is set to 'is' for age ranges
+            formattedRule.operator = 'is'
           }
 
           return formattedRule
@@ -371,35 +377,24 @@ export function SegmentBuilder() {
         )
 
       case 'age':
-        if (rule.operator === 'between') {
-          return (
-            <div className="flex-1 space-y-2">
-              <div className="flex justify-between">
-                <span className="text-xs">{rule.minValue || 18}</span>
-                <span className="text-xs">{rule.maxValue || 65}</span>
-              </div>
-              <Slider
-                defaultValue={[rule.minValue || 18, rule.maxValue || 65]}
-                min={0}
-                max={100}
-                step={1}
-                onValueChange={(value) => {
-                  updateRule(rule.id, 'minValue', value[0])
-                  updateRule(rule.id, 'maxValue', value[1])
-                }}
-              />
-            </div>
-          )
-        } else {
-          return (
-            <Input
-              type="number"
-              value={rule.value}
-              onChange={(e) => updateRule(rule.id, 'value', e.target.value)}
-              className="w-[100px]"
-            />
-          )
-        }
+        return (
+          <Select
+            value={rule.value}
+            onValueChange={(value) => updateRule(rule.id, 'value', value)}
+          >
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Select age range" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="18-24">18-24 years</SelectItem>
+              <SelectItem value="25-34">25-34 years</SelectItem>
+              <SelectItem value="35-44">35-44 years</SelectItem>
+              <SelectItem value="45-54">45-54 years</SelectItem>
+              <SelectItem value="55-64">55-64 years</SelectItem>
+              <SelectItem value="65+">65+ years</SelectItem>
+            </SelectContent>
+          </Select>
+        )
 
       case 'gender':
         return (
@@ -527,15 +522,14 @@ export function SegmentBuilder() {
   const getRuleOperators = (ruleType: string) => {
     switch (ruleType) {
       case 'purchase':
-      case 'visit':
         return [
-          { value: 'greater_than', label: 'Greater than' },
+          { value: 'greater_than', label: 'More than' },
           { value: 'less_than', label: 'Less than' },
-          { value: 'equal_to', label: 'Equal to' }
+          { value: 'equal_to', label: 'Exactly' }
         ]
 
       case 'product_category':
-      case 'gender':
+      case 'material':
         return [
           { value: 'is', label: 'Is' },
           { value: 'is_not', label: 'Is not' }
@@ -543,30 +537,15 @@ export function SegmentBuilder() {
 
       case 'age':
         return [
-          { value: 'greater_than', label: 'Greater than' },
-          { value: 'less_than', label: 'Less than' },
-          { value: 'equal_to', label: 'Equal to' },
-          { value: 'between', label: 'Between' }
+          { value: 'is', label: 'Is' }
         ]
 
-      case 'location':
+      case 'gender':
         return [
-          { value: 'is', label: 'Is' },
-          { value: 'contains', label: 'Contains' }
-        ]
-
-      case 'material':
-        return [
-          { value: 'is', label: 'Is' },
-          { value: 'is_not', label: 'Is not' }
+          { value: 'is', label: 'Is' }
         ]
 
       case 'preference_segment':
-        return [
-          { value: 'is', label: 'Is' },
-          { value: 'is_not', label: 'Is not' }
-        ]
-
       case 'rfm_segment':
         return [
           { value: 'is', label: 'Is' },
@@ -576,8 +555,7 @@ export function SegmentBuilder() {
       default:
         return [
           { value: 'is', label: 'Is' },
-          { value: 'is_not', label: 'Is not' },
-          { value: 'contains', label: 'Contains' }
+          { value: 'is_not', label: 'Is not' }
         ]
     }
   }
@@ -590,33 +568,31 @@ export function SegmentBuilder() {
 
     // Type labels
     switch (rule.type) {
-      case 'purchase': typeLabel = 'Purchase count'; break
-      case 'visit': typeLabel = 'Visit count'; break
+      case 'purchase': typeLabel = 'Total purchases'; break
       case 'product_category': typeLabel = 'Product category'; break
-      case 'age': typeLabel = 'Age'; break
+      case 'age': typeLabel = 'Age group'; break
       case 'gender': typeLabel = 'Gender'; break
-      case 'location': typeLabel = 'Location'; break
-      case 'material': typeLabel = 'Product Material'; break
-      case 'preference_segment': typeLabel = 'Preference Segment'; break
-      case 'rfm_segment': typeLabel = 'RFM Segment'; break
+      case 'material': typeLabel = 'Product material'; break
+      case 'preference_segment': typeLabel = 'Preference segment'; break
+      case 'rfm_segment': typeLabel = 'Customer value segment'; break
       default: typeLabel = rule.type
     }
 
     // Operator labels
     switch (rule.operator) {
-      case 'greater_than': operatorLabel = 'is greater than'; break
+      case 'greater_than': operatorLabel = 'is more than'; break
       case 'less_than': operatorLabel = 'is less than'; break
-      case 'equal_to': operatorLabel = 'is equal to'; break
+      case 'equal_to': operatorLabel = 'is exactly'; break
       case 'is': operatorLabel = 'is'; break
       case 'is_not': operatorLabel = 'is not'; break
       case 'contains': operatorLabel = 'contains'; break
-      case 'between': operatorLabel = 'is between'; break
+      case 'in_range': operatorLabel = 'is in range'; break
       default: operatorLabel = rule.operator
     }
 
-    // Special case for between operator
-    if (rule.operator === 'between' && rule.type === 'age') {
-      return `${typeLabel} ${operatorLabel} ${rule.minValue || 18} and ${rule.maxValue || 65}`
+    // Special case for age groups
+    if (rule.type === 'age') {
+      return `${typeLabel} ${operatorLabel} ${rule.value || 'unknown'}`
     }
 
     // Special case for product category
@@ -640,31 +616,18 @@ export function SegmentBuilder() {
         <CardHeader>
           <div className="flex justify-between items-start">
             <div>
-              <CardTitle>Segment Builder</CardTitle>
+              <CardTitle>Customer Group Builder</CardTitle>
               <CardDescription>
-                Create custom segments based on customer attributes and behaviors
+                Create groups of customers with similar characteristics for targeted marketing
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
-              {apiHealthy === null ? (
-                <span className="text-xs text-muted-foreground">Checking API...</span>
-              ) : apiHealthy ? (
-                <span className="text-xs text-green-500 flex items-center gap-1">
-                  <div className="h-2 w-2 rounded-full bg-green-500"></div>
-                  Segment API Connected
-                </span>
-              ) : (
-                <span className="text-xs text-red-500 flex items-center gap-1">
-                  <div className="h-2 w-2 rounded-full bg-red-500"></div>
-                  Segment API Disconnected
-                </span>
-              )}
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={checkApiHealth}
                 disabled={checkingHealth}
-                title="Check segment API connection"
+                title="Refresh"
               >
                 {checkingHealth ? (
                   <ReloadIcon className="h-3 w-3 animate-spin" />
@@ -676,54 +639,30 @@ export function SegmentBuilder() {
           </div>
         </CardHeader>
         <CardContent>
-          {apiHealthy === false && (
-            <Alert variant="destructive" className="mb-4">
-              <AlertTitle className="flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-red-500"></div>
-                Segment API Connection Error
-              </AlertTitle>
-              <AlertDescription>
-                <p className="mb-2">
-                  The segment storage API is currently unavailable. You can still create and preview segments,
-                  but they will be stored locally and not synchronized with the server.
-                </p>
-                <p className="text-xs text-muted">
-                  Make sure the segment storage server is running at http://localhost:5000.
-                  You can start it by running the start_server.bat file in the crm-segment-storing directory.
-                </p>
-                <Button
-                  variant="link"
-                  className="p-0 h-auto text-xs mt-2"
-                  onClick={checkApiHealth}
-                >
-                  Try reconnecting
-                </Button>
-              </AlertDescription>
-            </Alert>
-          )}
+
 
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-4">
-              <TabsTrigger value="create">Create Segment</TabsTrigger>
-              <TabsTrigger value="manage">Manage Segments</TabsTrigger>
+              <TabsTrigger value="create">Create Customer Group</TabsTrigger>
+              <TabsTrigger value="manage">View Saved Groups</TabsTrigger>
             </TabsList>
 
             <TabsContent value="create">
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="segment-name">Segment Name</Label>
+                    <Label htmlFor="segment-name">Group Name</Label>
                     <Input
                       id="segment-name"
                       value={currentSegment.name}
                       onChange={(e) => setCurrentSegment({ ...currentSegment, name: e.target.value })}
-                      placeholder="e.g., High-Value Denim Lovers"
+                      placeholder="e.g., Female Fashion Enthusiasts"
                       className="mt-1"
                     />
                   </div>
 
                   <div>
-                    <Label htmlFor="segment-active" className="block mb-2">Status</Label>
+                    <Label htmlFor="segment-active" className="block mb-2">Group Status</Label>
                     <div className="flex items-center space-x-2">
                       <Switch
                         id="segment-active"
@@ -738,29 +677,29 @@ export function SegmentBuilder() {
                 </div>
 
                 <div>
-                  <Label htmlFor="segment-description">Description</Label>
+                  <Label htmlFor="segment-description">Group Description</Label>
                   <Input
                     id="segment-description"
                     value={currentSegment.description}
                     onChange={(e) => setCurrentSegment({ ...currentSegment, description: e.target.value })}
-                    placeholder="Describe the purpose of this segment"
+                    placeholder="Describe who should be in this customer group"
                     className="mt-1"
                   />
                 </div>
 
                 <div>
                   <div className="flex justify-between items-center mb-2">
-                    <Label>Segment Rules</Label>
+                    <Label>Selection Criteria</Label>
                     <Button variant="outline" size="sm" onClick={addRule}>
                       <Plus className="h-4 w-4 mr-1" />
-                      Add Rule
+                      Add Criteria
                     </Button>
                   </div>
 
                   {currentSegment.rules.length === 0 ? (
                     <div className="border border-dashed rounded-md p-4 text-center">
                       <p className="text-sm text-muted-foreground">
-                        No rules defined yet. Add rules to define this segment.
+                        No criteria added yet. Click "Add Criteria" to select which customers should be in this group.
                       </p>
                     </div>
                   ) : (
@@ -775,19 +714,17 @@ export function SegmentBuilder() {
                             value={rule.type}
                             onValueChange={(value) => updateRule(rule.id, 'type', value)}
                           >
-                            <SelectTrigger className="w-[150px]">
-                              <SelectValue placeholder="Rule type" />
+                            <SelectTrigger className="w-[180px]">
+                              <SelectValue placeholder="Select a field" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="purchase">Purchase Count</SelectItem>
-                              <SelectItem value="visit">Visit Count</SelectItem>
+                              <SelectItem value="purchase">Total Purchases</SelectItem>
                               <SelectItem value="product_category">Product Category</SelectItem>
                               <SelectItem value="material">Product Material</SelectItem>
-                              <SelectItem value="preference_segment">Preference Segment</SelectItem>
-                              <SelectItem value="age">Age</SelectItem>
+                              <SelectItem value="age">Age Group</SelectItem>
                               <SelectItem value="gender">Gender</SelectItem>
-                              <SelectItem value="location">Location</SelectItem>
-                              <SelectItem value="rfm_segment">RFM Segment</SelectItem>
+                              <SelectItem value="rfm_segment">Customer Value Segment</SelectItem>
+                              <SelectItem value="preference_segment">Preference Segment</SelectItem>
                             </SelectContent>
                           </Select>
 
@@ -818,9 +755,9 @@ export function SegmentBuilder() {
 
                 {currentSegment.rules.length > 0 && (
                   <div className="bg-muted p-4 rounded-md">
-                    <h3 className="text-sm font-medium mb-2">Segment Preview</h3>
+                    <h3 className="text-sm font-medium mb-2">Group Summary</h3>
                     <p className="text-sm text-muted-foreground mb-2">
-                      This segment will include customers who match ALL of the following criteria:
+                      This group will include customers who match ALL of these criteria:
                     </p>
                     <div className="space-y-1">
                       {currentSegment.rules.map((rule: any) => (
@@ -836,7 +773,7 @@ export function SegmentBuilder() {
                 {currentSegment.rules && currentSegment.rules.length > 0 && (
                   <div className="bg-muted p-4 rounded-md mb-4">
                     <div className="flex justify-between items-center mb-2">
-                      <h3 className="text-sm font-medium">Segment Size Estimate</h3>
+                      <h3 className="text-sm font-medium">Group Size Estimate</h3>
                       <Button
                         variant="outline"
                         size="sm"
@@ -848,14 +785,14 @@ export function SegmentBuilder() {
                         ) : (
                           <ReloadIcon className="h-4 w-4 mr-2" />
                         )}
-                        Refresh Estimate
+                        Preview Group Size
                       </Button>
                     </div>
 
                     {previewData ? (
                       <div className="space-y-2">
                         <div className="flex justify-between items-center">
-                          <span className="text-sm">Estimated customers in segment:</span>
+                          <span className="text-sm">Estimated customers in group:</span>
                           <span className="font-medium">{previewData.count.toLocaleString()}</span>
                         </div>
                         <div className="space-y-1">
@@ -872,11 +809,11 @@ export function SegmentBuilder() {
                     ) : previewLoading ? (
                       <div className="flex items-center justify-center py-4">
                         <ReloadIcon className="h-5 w-5 animate-spin mr-2" />
-                        <span>Calculating segment size...</span>
+                        <span>Calculating group size...</span>
                       </div>
                     ) : (
                       <div className="text-sm text-muted-foreground text-center py-2">
-                        Click "Refresh Estimate" to see how many customers match these rules
+                        Click "Preview Group Size" to see how many customers match these criteria
                       </div>
                     )}
                   </div>
@@ -892,7 +829,7 @@ export function SegmentBuilder() {
                     ) : (
                       <Save className="h-4 w-4 mr-2" />
                     )}
-                    Save Segment
+                    Save Customer Group
                   </Button>
                 </div>
               </div>
@@ -902,16 +839,16 @@ export function SegmentBuilder() {
               {loading ? (
                 <div className="flex items-center justify-center py-8">
                   <ReloadIcon className="h-6 w-6 animate-spin mr-2" />
-                  <span>Loading segments...</span>
+                  <span>Loading customer groups...</span>
                 </div>
               ) : segments.length === 0 ? (
                 <div className="border border-dashed rounded-md p-8 text-center">
                   <p className="text-muted-foreground mb-4">
-                    No custom segments created yet
+                    No customer groups created yet
                   </p>
                   <Button onClick={() => setActiveTab('create')}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Create Your First Segment
+                    Create Your First Customer Group
                   </Button>
                 </div>
               ) : (
@@ -951,20 +888,10 @@ export function SegmentBuilder() {
                           <div className="bg-muted p-3 rounded-md">
                             <div className="flex justify-between items-start">
                               <div>
-                                <h4 className="text-xs font-medium text-muted-foreground mb-1">Segment Size</h4>
+                                <h4 className="text-xs font-medium text-muted-foreground mb-1">Group Size</h4>
                                 <p className="text-lg font-medium">{segment.customerCount?.toLocaleString() || 'N/A'} customers</p>
                               </div>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  // Open a new tab to view analytics
-                                  const url = `/segment-analytics/${segment.id}`;
-                                  window.open(url, '_blank');
-                                }}
-                              >
-                                Analytics
-                              </Button>
+
                             </div>
                             <div className="w-full bg-background rounded-full h-2 mt-2">
                               <div
@@ -997,31 +924,53 @@ export function SegmentBuilder() {
                                 View Customers
                               </Button>
 
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="w-full"
-                                onClick={async () => {
-                                  try {
-                                    setLoading(true);
-                                    const exportData = await exportSegmentCustomers(segment.id, 'all');
-                                    alert(`Exported ${exportData.customer_count} customers for marketing`);
-                                  } catch (error) {
-                                    console.error('Error exporting customers:', error);
-                                    alert('Failed to export customers. Please try again.');
-                                  } finally {
-                                    setLoading(false);
-                                  }
-                                }}
-                              >
-                                <ArrowRight className="h-3 w-3 mr-1" />
-                                Export for Marketing
-                              </Button>
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="flex-1"
+                                  onClick={async () => {
+                                    try {
+                                      setLoading(true);
+                                      const exportData = await exportSegmentCustomers(segment.id, 'all');
+                                      alert(`Exported ${exportData.customer_count} customers for marketing`);
+                                    } catch (error) {
+                                      console.error('Error exporting customers:', error);
+                                      alert('Failed to export customers. Please try again.');
+                                    } finally {
+                                      setLoading(false);
+                                    }
+                                  }}
+                                >
+                                  <ArrowRight className="h-3 w-3 mr-1" />
+                                  Export for Marketing
+                                </Button>
+
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  className="flex-1"
+                                  onClick={async () => {
+                                    try {
+                                      setLoading(true);
+                                      await exportSegmentCustomers(segment.id, 'csv');
+                                    } catch (error) {
+                                      console.error('Error exporting CSV:', error);
+                                      alert('Failed to export CSV. Please try again.');
+                                    } finally {
+                                      setLoading(false);
+                                    }
+                                  }}
+                                >
+                                  <Download className="h-3 w-3 mr-1" />
+                                  Export CSV
+                                </Button>
+                              </div>
                             </div>
                           </div>
                         </div>
 
-                        <h3 className="text-sm font-medium mb-2">Rules</h3>
+                        <h3 className="text-sm font-medium mb-2">Selection Criteria</h3>
                         <div className="space-y-1">
                           {segment.rules.map((rule: any, index: number) => (
                             <div key={rule.id} className="flex items-center gap-2">
@@ -1041,7 +990,7 @@ export function SegmentBuilder() {
               <div className="mt-6">
                 <Button onClick={() => setActiveTab('create')}>
                   <Plus className="h-4 w-4 mr-2" />
-                  Create New Segment
+                  Create New Customer Group
                 </Button>
               </div>
             </TabsContent>
@@ -1051,10 +1000,10 @@ export function SegmentBuilder() {
 
       <Alert>
         <InfoCircledIcon className="h-4 w-4" />
-        <AlertTitle>Segment Usage</AlertTitle>
+        <AlertTitle>Customer Group Usage</AlertTitle>
         <AlertDescription>
-          Custom segments can be used for targeted marketing campaigns and custom dashboards.
-          Create segments based on customer behaviors, demographics, or preferences.
+          Customer groups help you target specific types of customers for marketing campaigns.
+          Create groups based on customer characteristics like age, gender, and purchase history.
         </AlertDescription>
       </Alert>
     </div>

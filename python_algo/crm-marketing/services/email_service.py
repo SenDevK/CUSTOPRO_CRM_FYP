@@ -26,7 +26,7 @@ class EmailService:
             if not api_key:
                 raise ValueError("SendGrid API key is required")
 
-            from_email = from_email or self.credentials.get("from") or "noreply@lankasmartcrm.com"
+            from_email = from_email or self.credentials.get("from") or "noreply@custopro.com"
 
             # Import SendGrid SDK
             try:
@@ -71,7 +71,7 @@ class EmailService:
             if not api_key:
                 raise ValueError("Mailchimp API key is required")
 
-            from_email = from_email or self.credentials.get("from") or "noreply@lankasmartcrm.com"
+            from_email = from_email or self.credentials.get("from") or "noreply@custopro.com"
 
             # This is a simplified implementation - actual Mailchimp integration would be more complex
             # Mailchimp uses a different API structure for transactional emails (Mandrill)

@@ -46,14 +46,8 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
           <Menu />
         </Button>
 
-        <div className="relative hidden md:flex">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder={t('common.search') + '...'}
-            className="w-[200px] sm:w-[300px] pl-8"
-          />
-        </div>
+        {/* Search bar removed as requested */}
+        <div className="flex-1"></div>
 
         <div className="flex items-center gap-2">
           <LanguageSwitcher />

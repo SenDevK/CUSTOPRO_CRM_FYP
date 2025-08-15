@@ -249,7 +249,7 @@ export function SMSTemplateEditor({
                   <MessageSquare className="h-4 w-4 text-primary" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium">Your Company</p>
+                  <p className="text-sm font-medium">Eegent Fashion</p>
                   <p className="text-sm mt-1">
                     {currentContent ? (
                       currentContent

@@ -115,6 +115,17 @@ export const getCustomerById = async (id: string): Promise<Customer | null> => {
       consentGiven: data.consentGiven || data.consent_given || false,
       consentDate: data.consentDate || data.consent_date || '',
       notes: data.notes || '',
+
+      // Additional fields that might be in the backend response
+      gender: data.gender || '',
+      age: data.age || null,
+      value_segment: data.value_segment || data.valueSegment || '',
+      rfm_data: data.rfm_data || data.rfmData || null,
+      transactions: data.transactions || [],
+      preferences: data.preferences || {},
+      survey_responses: data.survey_responses || data.surveyResponses || [],
+      gender_segment: data.gender_segment || data.genderSegment || '',
+      age_segment: data.age_segment || data.ageSegment || '',
       createdAt: data.createdAt || data.created_date || new Date().toISOString(),
       marketing_status: data.marketing_status || 'active',
       opt_out_date: data.opt_out_date || undefined,

@@ -38,19 +38,14 @@ const Sidebar = ({ collapsed = false }: SidebarProps) => {
 
   const menuItems: SidebarItem[] = [
     {
-      title: t('common.dashboard'),
-      icon: <LayoutDashboard size={20} />,
-      href: "/dashboard"
+      title: t('common.analytics'),
+      icon: <BarChart3 size={20} />,
+      href: "/analytics"
     },
     {
       title: t('common.customers'),
       icon: <Users size={20} />,
       href: "/customers"
-    },
-    {
-      title: t('common.analytics'),
-      icon: <BarChart3 size={20} />,
-      href: "/analytics"
     },
     {
       title: t('common.dataImport'),
@@ -72,7 +67,7 @@ const Sidebar = ({ collapsed = false }: SidebarProps) => {
   return (
     <div className="h-full flex flex-col bg-sidebar border-r border-sidebar-border">
       <div className="p-4 flex items-center justify-center">
-        <Link to="/dashboard" className="flex items-center gap-2">
+        <Link to="/analytics" className="flex items-center gap-2">
           <CustoProLogo size="md" showText={!collapsed} />
         </Link>
       </div>

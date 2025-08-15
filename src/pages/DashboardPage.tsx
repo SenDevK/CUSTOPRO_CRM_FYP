@@ -281,7 +281,7 @@ const DashboardPage = () => {
     <div className="page-container">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold">Welcome back, Asela</h1>
+          <h1 className="text-3xl font-bold">Welcome back, Eegent Fashion</h1>
           <p className="text-muted-foreground">
             {dashboardConfig
               ? `Viewing ${dashboardConfig.name}${dashboardConfig.isDefault ? ' (Default)' : ''}`

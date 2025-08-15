@@ -30,7 +30,6 @@ const LoginPage = () => {
   const [mounted, setMounted] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState("admin");
   const [isLoading, setIsLoading] = useState(false);
 
   // useEffect only runs on the client, so now we can safely show the UI
@@ -51,7 +50,7 @@ const LoginPage = () => {
       setIsLoading(false);
       if (email && password) {
         toast.success("Login successful!");
-        navigate("/dashboard");
+        navigate("/analytics");
       } else {
         toast.error("Please enter email and password");
       }
@@ -105,20 +104,7 @@ const LoginPage = () => {
                   onChange={(e) => setPassword(e.target.value)}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="role">Login as</Label>
-                <Select value={role} onValueChange={setRole}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="data_analyst">Data Analyst</SelectItem>
-                    <SelectItem value="marketing">Marketing Team</SelectItem>
-                    <SelectItem value="legal">Legal Team</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+
             </CardContent>
             <CardFooter>
               <Button type="submit" className="w-full" disabled={isLoading}>

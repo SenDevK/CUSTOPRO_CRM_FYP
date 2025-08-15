@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import {
   ResponsiveContainer,
   PieChart as RePieChart,
@@ -16,6 +17,8 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { InfoCircledIcon } from '@radix-ui/react-icons'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Download } from 'lucide-react'
+import { exportSegmentTypeCustomers } from '@/services/segmentationApi'
 
 // Define colors for consistent visualization
 const GENDER_COLORS = {
@@ -39,6 +42,22 @@ const AGE_COLORS = {
 };
 
 export function DemographicTab({ demographicData }) {
+  // State for tracking export loading state
+  const [exporting, setExporting] = useState(false)
+
+  // Function to export segment customers as CSV
+  const exportSegmentCustomers = async (segmentType, segmentName) => {
+    try {
+      setExporting(true)
+      await exportSegmentTypeCustomers(segmentType, segmentName)
+    } catch (error) {
+      console.error('Error exporting customers:', error)
+      alert('Failed to export customers. Please try again.')
+    } finally {
+      setExporting(false)
+    }
+  }
+
   // Extract gender and age data from combined segments
   const { genderData, ageOnlyData, combinedData } = useMemo(() => {
     // Initialize counters for each gender and age group
@@ -169,25 +188,9 @@ export function DemographicTab({ demographicData }) {
         </CardHeader>
         <CardContent>
           <div className="p-4 mb-4 bg-slate-50 rounded-lg border border-slate-100">
-            <h3 className="text-sm font-medium mb-2">What is Demographic Segmentation?</h3>
             <p className="text-sm text-muted-foreground">
-              Demographic segmentation divides your customer base into groups based on age, gender, and other demographic characteristics.
-              This helps you understand the composition of your customer base.
+              Distribution of customers across demographic categories.
             </p>
-            <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-2">
-              <div className="flex items-center gap-2 text-xs text-blue-600">
-                <div className="h-2 w-2 rounded-full bg-blue-600"></div>
-                <span>Visualize customer demographics</span>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-green-600">
-                <div className="h-2 w-2 rounded-full bg-green-600"></div>
-                <span>Analyze demographic distribution</span>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-purple-600">
-                <div className="h-2 w-2 rounded-full bg-purple-600"></div>
-                <span>Monitor demographic data quality</span>
-              </div>
-            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -264,30 +267,7 @@ export function DemographicTab({ demographicData }) {
             {/* Gender Distribution Tab */}
             <TabsContent value="gender">
               <div className="space-y-4">
-                <div className="p-4 mb-4 bg-blue-50 rounded-lg border border-blue-100">
-                  <h3 className="text-sm font-medium text-blue-800 mb-2">Gender Distribution</h3>
-                  <p className="text-sm text-blue-700 mb-3">
-                    This visualization shows the distribution of your customers by gender. Gender is an important demographic factor that can help you understand your customer base better.
-                  </p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-white p-3 rounded-md border border-blue-100">
-                      <h4 className="text-xs font-medium text-blue-800 mb-2">What You're Seeing</h4>
-                      <ul className="text-xs text-blue-700 space-y-1 list-disc pl-4">
-                        <li>Distribution of customers across different gender categories</li>
-                        <li>Percentage of customers in each gender group</li>
-                        <li>Data quality indicators showing completeness of gender information</li>
-                      </ul>
-                    </div>
-                    <div className="bg-white p-3 rounded-md border border-blue-100">
-                      <h4 className="text-xs font-medium text-blue-800 mb-2">Data Sources</h4>
-                      <ul className="text-xs text-blue-700 space-y-1 list-disc pl-4">
-                        <li>Customer profile information collected during registration</li>
-                        <li>Gender data from customer records in your database</li>
-                        <li>Segmentation analysis of your customer base</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
+
 
                 <Tabs defaultValue="chart">
                   <TabsList className="mb-4">
@@ -369,6 +349,31 @@ export function DemographicTab({ demographicData }) {
 
                   {/* Table View Tab */}
                   <TabsContent value="table">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-lg font-medium">Gender Segments</h3>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => exportSegmentCustomers('demographic', 'all_gender')}
+                        disabled={exporting}
+                      >
+                        {exporting ? (
+                          <span className="flex items-center gap-1">
+                            <svg className="animate-spin h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Exporting...
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1">
+                            <Download className="h-4 w-4 mr-1" />
+                            Export All as CSV
+                          </span>
+                        )}
+                      </Button>
+                    </div>
+
                     <div className="overflow-x-auto">
                       <table className="w-full border-collapse">
                         <thead>
@@ -377,6 +382,7 @@ export function DemographicTab({ demographicData }) {
                             <th className="text-right py-2">Count</th>
                             <th className="text-right py-2">Percentage</th>
                             <th className="text-left py-2">Distribution</th>
+                            <th className="text-right py-2">Actions</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -404,6 +410,16 @@ export function DemographicTab({ demographicData }) {
                                   />
                                 </div>
                               </td>
+                              <td className="py-3 text-right">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => exportSegmentCustomers('demographic', `Gender_${segment.name}`)}
+                                  disabled={exporting}
+                                >
+                                  <Download className="h-3 w-3" />
+                                </Button>
+                              </td>
                             </tr>
                           ))}
                           <tr className="bg-muted/30">
@@ -426,30 +442,7 @@ export function DemographicTab({ demographicData }) {
             <TabsContent value="age">
               {hasAgeData ? (
                 <div className="space-y-4">
-                  <div className="p-4 mb-4 bg-amber-50 rounded-lg border border-amber-100">
-                    <h3 className="text-sm font-medium text-amber-800 mb-2">Age Distribution</h3>
-                    <p className="text-sm text-amber-700 mb-3">
-                      This visualization shows the distribution of your customers across different age groups. Age is an important demographic factor that can help you understand your customer base better.
-                    </p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="bg-white p-3 rounded-md border border-amber-100">
-                        <h4 className="text-xs font-medium text-amber-800 mb-2">What You're Seeing</h4>
-                        <ul className="text-xs text-amber-700 space-y-1 list-disc pl-4">
-                          <li>Distribution of customers across different age brackets</li>
-                          <li>Percentage of customers in each age group</li>
-                          <li>Data quality indicators showing completeness of age information</li>
-                        </ul>
-                      </div>
-                      <div className="bg-white p-3 rounded-md border border-amber-100">
-                        <h4 className="text-xs font-medium text-amber-800 mb-2">Data Sources</h4>
-                        <ul className="text-xs text-amber-700 space-y-1 list-disc pl-4">
-                          <li>Customer profile information collected during registration</li>
-                          <li>Age data from customer records in your database</li>
-                          <li>Segmentation analysis of your customer base</li>
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
+
 
                   <Tabs defaultValue="chart">
                     <TabsList className="mb-4">
@@ -565,6 +558,31 @@ export function DemographicTab({ demographicData }) {
                     </TabsContent>
 
                     <TabsContent value="table">
+                      <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-lg font-medium">Age Segments</h3>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => exportSegmentCustomers('demographic', 'all_age')}
+                          disabled={exporting}
+                        >
+                          {exporting ? (
+                            <span className="flex items-center gap-1">
+                              <svg className="animate-spin h-4 w-4 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                              Exporting...
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1">
+                              <Download className="h-4 w-4 mr-1" />
+                              Export All as CSV
+                            </span>
+                          )}
+                        </Button>
+                      </div>
+
                       <div className="overflow-x-auto">
                         <table className="w-full border-collapse">
                           <thead>
@@ -573,6 +591,7 @@ export function DemographicTab({ demographicData }) {
                               <th className="text-right py-2">Count</th>
                               <th className="text-right py-2">Percentage</th>
                               <th className="text-left py-2">Distribution</th>
+                              <th className="text-right py-2">Actions</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -592,6 +611,16 @@ export function DemographicTab({ demographicData }) {
                                     />
                                   </div>
                                 </td>
+                                <td className="py-3 text-right">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => exportSegmentCustomers('demographic', `Age_${segment.name}`)}
+                                    disabled={exporting}
+                                  >
+                                    <Download className="h-3 w-3" />
+                                  </Button>
+                                </td>
                               </tr>
                             ))}
                             <tr className="bg-muted/30">
@@ -600,6 +629,7 @@ export function DemographicTab({ demographicData }) {
                                 {ageOnlyData.reduce((sum, item) => sum + item.value, 0).toLocaleString()}
                               </td>
                               <td className="text-right py-3 font-medium">100%</td>
+                              <td className="py-3"></td>
                               <td className="py-3"></td>
                             </tr>
                           </tbody>
