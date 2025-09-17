@@ -32,3 +32,5 @@ The CUSTOPRO system follows a clear workflow:
 3.  Profiles are used for automated marketing segmentation.
 4.  Based on these segments, the user initiates a targeted marketing campaign.
 5.  Customers can easily opt out of the system.
+
+Watch attached link vedio demonstration walkthrough of the product - https://drive.google.com/file/d/1Xwxe96p8aBAlfx6x9HLrII_SGMdy7hFD/view?usp=sharing
